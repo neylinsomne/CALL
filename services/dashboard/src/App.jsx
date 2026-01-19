@@ -8,7 +8,10 @@ import Dashboard from './pages/Dashboard';
 import Calls from './pages/Calls';
 import CallDetail from './pages/CallDetail';
 import Agents from './pages/Agents';
+import AgentProfile from './pages/AgentProfile';
 import Analytics from './pages/Analytics';
+import Vocabulary from './pages/Vocabulary';
+import KnowledgeBase from './pages/KnowledgeBase';
 
 // Auth Context
 const AuthContext = createContext(null);
@@ -57,7 +60,10 @@ function App() {
                             <Route path="/calls" element={<Calls />} />
                             <Route path="/calls/:id" element={<CallDetail />} />
                             <Route path="/agents" element={<Agents />} />
+                            <Route path="/agents/:id" element={<AgentProfile />} />
                             <Route path="/analytics" element={<Analytics />} />
+                            <Route path="/vocabulary" element={<Vocabulary />} />
+                            <Route path="/knowledge" element={<KnowledgeBase />} />
                             <Route path="*" element={<Navigate to="/" />} />
                         </Routes>
                     </main>
@@ -68,3 +74,4 @@ function App() {
 }
 
 export default App;
+

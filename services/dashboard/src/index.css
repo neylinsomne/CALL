@@ -7,7 +7,7 @@
   --bg-card: #1a1a24;
   --bg-hover: #22222e;
   --border: rgba(255, 255, 255, 0.08);
-  
+
   /* Accent Colors */
   --accent-blue: #3b82f6;
   --accent-purple: #8b5cf6;
@@ -16,27 +16,27 @@
   --accent-yellow: #f59e0b;
   --accent-red: #ef4444;
   --accent-pink: #ec4899;
-  
+
   /* Text */
   --text-primary: #ffffff;
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
-  
+
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
   --gradient-success: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-cyan) 100%);
   --gradient-warning: linear-gradient(135deg, var(--accent-yellow) 0%, var(--accent-red) 100%);
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.3);
-  
+
   /* Spacing */
   --sidebar-width: 280px;
   --header-height: 70px;
-  
+
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
@@ -380,11 +380,30 @@ tr:hover {
 }
 
 /* Emotion Badges */
-.emotion-happy { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
-.emotion-neutral { background: rgba(156, 163, 175, 0.15); color: var(--text-secondary); }
-.emotion-frustrated { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); }
-.emotion-angry { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
-.emotion-sad { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); }
+.emotion-happy {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+}
+
+.emotion-neutral {
+  background: rgba(156, 163, 175, 0.15);
+  color: var(--text-secondary);
+}
+
+.emotion-frustrated {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow);
+}
+
+.emotion-angry {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+}
+
+.emotion-sad {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-purple);
+}
 
 /* Buttons */
 .btn {
@@ -579,8 +598,15 @@ tr:hover {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fade-in {
@@ -588,21 +614,105 @@ tr:hover {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .pulse {
   animation: pulse 2s infinite;
 }
 
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.tab {
+  padding: 0.75rem 1.25rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
+}
+
+/* Small Buttons */
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}
+
 /* Responsive */
 @media (max-width: 1400px) {
-  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 1024px) {
-  .sidebar { display: none; }
-  .main-content { margin-left: 0; }
-  .header { left: 0; }
+  .sidebar {
+    display: none;
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+
+  .header {
+    left: 0;
+  }
 }

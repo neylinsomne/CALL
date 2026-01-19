@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Search, UserPlus, Phone, Clock, ThumbsUp, TrendingUp,
     Circle, MoreVertical
@@ -6,7 +7,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MOCK_AGENTS, formatDuration } from '../data/mockData';
 
-function AgentCard({ agent }) {
+function AgentCard({ agent, onClick }) {
     const statusColors = {
         online: '#10b981',
         busy: '#f59e0b',
@@ -20,7 +21,7 @@ function AgentCard({ agent }) {
     };
 
     return (
-        <div className="card" style={{ position: 'relative' }}>
+        <div className="card" style={{ position: 'relative', cursor: 'pointer' }} onClick={onClick}>
             {/* Status indicator */}
             <div style={{
                 position: 'absolute',
@@ -104,6 +105,7 @@ function AgentCard({ agent }) {
 }
 
 export default function Agents() {
+    const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [departmentFilter, setDepartmentFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
@@ -230,7 +232,7 @@ export default function Agents() {
             {/* Agent Cards Grid */}
             <div className="grid grid-3">
                 {filteredAgents.map(agent => (
-                    <AgentCard key={agent.id} agent={agent} />
+                    <AgentCard key={agent.id} agent={agent} onClick={() => navigate(`/agents/${agent.id}`)} />
                 ))}
             </div>
         </div>
