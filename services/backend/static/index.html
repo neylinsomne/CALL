@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Call Center - Test Interface</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-card: #16213e;
+            --accent: #00d4ff;
+            --accent-glow: rgba(0, 212, 255, 0.3);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --success: #00ff88;
+            --danger: #ff4757;
+            --warning: #ffa502;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, var(--accent), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--danger);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .visualizer {
+            height: 100px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .visualizer-bars {
+            display: flex;
+            gap: 4px;
+            height: 80%;
+        }
+
+        .bar {
+            width: 8px;
+            background: linear-gradient(to top, var(--accent), #a855f7);
+            border-radius: 4px;
+            transition: height 0.1s ease;
+        }
+
+        .transcript {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+
+        .message {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .message.user {
+            color: var(--accent);
+        }
+
+        .message.assistant {
+            color: var(--success);
+        }
+
+        .message .role {
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .text-input {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎙️ AI Call Center</h1>
+            <p class="subtitle">Interface de Prueba - Opción 3 (Sin Asterisk)</p>
+        </header>
+
+        <div class="grid">
+            <!-- Connection Panel -->
+            <div class="card">
+                <h2>
+                    <span class="status-dot" id="statusDot"></span>
+                    Conexión
+                </h2>
+                <div class="controls">
+                    <button class="btn-primary" id="connectBtn" onclick="connect()">
+                        🔌 Conectar
+                    </button>
+                    <button class="btn-danger" id="disconnectBtn" onclick="disconnect()" disabled>
+                        ❌ Desconectar
+                    </button>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="latency">--</div>
+                        <div class="stat-label">Latencia (ms)</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="duration">0:00</div>
+                        <div class="stat-label">Duración</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="messages">0</div>
+                        <div class="stat-label">Mensajes</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Panel -->
+            <div class="card">
+                <h2>🎤 Audio</h2>
+                <div class="visualizer">
+                    <div class="visualizer-bars" id="visualizer">
+                        <!-- Bars generated by JS -->
+                    </div>
+                </div>
+                <div class="controls">
+                    <button class="btn-primary" id="recordBtn" onclick="toggleRecording()" disabled>
+                        🎤 Hablar
+                    </button>
+                    <button class="btn-secondary" onclick="playLastResponse()">
+                        🔊 Reproducir Última Respuesta
+                    </button>
+                </div>
+            </div>
+
+            <!-- Transcript Panel -->
+            <div class="card full-width">
+                <h2>💬 Transcripción</h2>
+                <div class="transcript" id="transcript">
+                    <div class="message assistant">
+                        <span class="role">[Sistema]</span>
+                        <span>Conecta para iniciar una conversación con el AI...</span>
+                    </div>
+                </div>
+                <div class="text-input">
+                    <input type="text" id="textInput" placeholder="O escribe un mensaje..." onkeypress="handleKeyPress(event)" disabled>
+                    <button class="btn-primary" onclick="sendText()" id="sendBtn" disabled>Enviar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const BACKEND_URL = 'ws://localhost:8000';
+        
+        // State
+        let ws = null;
+        let mediaRecorder = null;
+        let audioContext = null;
+        let analyser = null;
+        let isRecording = false;
+        let conversationId = null;
+        let startTime = null;
+        let messageCount = 0;
+        let lastAudioBlob = null;
+
+        // Initialize visualizer bars
+        function initVisualizer() {
+            const container = document.getElementById('visualizer');
+            container.innerHTML = '';
+            for (let i = 0; i < 20; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = '10%';
+                container.appendChild(bar);
+            }
+        }
+
+        // Update visualizer with audio data
+        function updateVisualizer(dataArray) {
+            const bars = document.querySelectorAll('.bar');
+            const step = Math.floor(dataArray.length / bars.length);
+            bars.forEach((bar, i) => {
+                const value = dataArray[i * step] || 0;
+                const height = Math.max(10, (value / 255) * 100);
+                bar.style.height = `${height}%`;
+            });
+        }
+
+        // Connect to WebSocket
+        async function connect() {
+            conversationId = 'test-' + Date.now();
+            
+            try {
+                ws = new WebSocket(`${BACKEND_URL}/ws/${conversationId}`);
+                
+                ws.onopen = () => {
+                    document.getElementById('statusDot').classList.add('connected');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    document.getElementById('recordBtn').disabled = false;
+                    document.getElementById('textInput').disabled = false;
+                    document.getElementById('sendBtn').disabled = false;
+                    startTime = Date.now();
+                    updateDuration();
+                    addMessage('Sistema', 'Conectado al AI Call Center', 'assistant');
+                };
+
+                ws.onmessage = async (event) => {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                };
+
+                ws.onclose = () => {
+                    disconnect();
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    addMessage('Error', 'Error de conexión', 'assistant');
+                };
+
+                // Initialize audio
+                await initAudio();
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                addMessage('Error', 'No se pudo conectar: ' + error.message, 'assistant');
+            }
+        }
+
+        // Disconnect
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            document.getElementById('statusDot').classList.remove('connected');
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            document.getElementById('recordBtn').disabled = true;
+            document.getElementById('textInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            isRecording = false;
+            document.getElementById('recordBtn').textContent = '🎤 Hablar';
+        }
+
+        // Initialize audio
+        async function initAudio() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                audioContext = new AudioContext();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+                
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
+                        // Send audio as binary
+                        const arrayBuffer = await event.data.arrayBuffer();
+                        ws.send(arrayBuffer);
+                    }
+                };
+
+                // Start visualizer animation
+                animateVisualizer();
+                
+            } catch (error) {
+                console.error('Audio init error:', error);
+                addMessage('Error', 'No se pudo acceder al micrófono', 'assistant');
+            }
+        }
+
+        // Animate visualizer
+        function animateVisualizer() {
+            if (!analyser) return;
+            
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            function update() {
+                analyser.getByteFrequencyData(dataArray);
+                updateVisualizer(dataArray);
+                requestAnimationFrame(update);
+            }
+            
+            update();
+        }
+
+        // Toggle recording
+        function toggleRecording() {
+            if (!isRecording) {
+                mediaRecorder.start(250); // Send chunks every 250ms
+                isRecording = true;
+                document.getElementById('recordBtn').textContent = '⏹️ Detener';
+                document.getElementById('recordBtn').classList.add('recording');
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                document.getElementById('recordBtn').textContent = '🎤 Hablar';
+                document.getElementById('recordBtn').classList.remove('recording');
+                
+                // Signal end of turn
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'end_turn' }));
+                }
+            }
+        }
+
+        // Handle incoming messages
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'greeting':
+                    addMessage('AI', data.text, 'assistant');
+                    if (data.audio) playAudio(data.audio);
+                    break;
+                case 'transcription':
+                    addMessage('Tú', data.text, 'user');
+                    messageCount++;
+                    break;
+                case 'response':
+                    addMessage('AI', data.text, 'assistant');
+                    messageCount++;
+                    break;
+                case 'audio':
+                    if (data.audio) playAudio(data.audio);
+                    break;
+                case 'error':
+                    addMessage('Error', data.message, 'assistant');
+                    break;
+            }
+            document.getElementById('messages').textContent = messageCount;
+        }
+
+        // Add message to transcript
+        function addMessage(role, text, type) {
+            const transcript = document.getElementById('transcript');
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.innerHTML = `<span class="role">[${role}]</span><span>${text}</span>`;
+            transcript.appendChild(div);
+            transcript.scrollTop = transcript.scrollHeight;
+        }
+
+        // Play audio from base64
+        async function playAudio(base64Audio) {
+            try {
+                const binaryString = atob(base64Audio);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                
+                lastAudioBlob = new Blob([bytes], { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(lastAudioBlob);
+                const audio = new Audio(audioUrl);
+                await audio.play();
+            } catch (error) {
+                console.error('Audio playback error:', error);
+            }
+        }
+
+        // Play last response
+        function playLastResponse() {
+            if (lastAudioBlob) {
+                const audioUrl = URL.createObjectURL(lastAudioBlob);
+                const audio = new Audio(audioUrl);
+                audio.play();
+            }
+        }
+
+        // Send text message
+        function sendText() {
+            const input = document.getElementById('textInput');
+            const text = input.value.trim();
+            
+            if (text && ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('Tú', text, 'user');
+                ws.send(JSON.stringify({ type: 'text', content: text }));
+                input.value = '';
+                messageCount++;
+                document.getElementById('messages').textContent = messageCount;
+            }
+        }
+
+        // Handle Enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendText();
+            }
+        }
+
+        // Update duration timer
+        function updateDuration() {
+            if (!startTime) return;
+            
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('duration').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            setTimeout(updateDuration, 1000);
+        }
+
+        // Initialize on load
+        initVisualizer();
+    </script>
+</body>
+</html>

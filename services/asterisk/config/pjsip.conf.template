@@ -1,0 +1,178 @@
+; PJSIP Configuration for AI Call Center
+; Supports: SIP Trunks, Softphones, WebRTC
+; Template with environment variable placeholders
+
+; ===========================================
+; TRANSPORTS
+; ===========================================
+[transport-udp]
+type=transport
+protocol=udp
+bind=0.0.0.0:5060
+
+[transport-tcp]
+type=transport
+protocol=tcp
+bind=0.0.0.0:5060
+
+[transport-ws]
+type=transport
+protocol=ws
+bind=0.0.0.0:8088
+
+[transport-wss]
+type=transport
+protocol=wss
+bind=0.0.0.0:8089
+
+; ===========================================
+; SIP TRUNK - Conectar a proveedor VOIP
+; Configura aquí tu proveedor (Grandstream, etc.)
+; ===========================================
+[trunk-provider]
+type=registration
+transport=transport-udp
+outbound_auth=trunk-auth
+server_uri=sip:${SIP_TRUNK_HOST}
+client_uri=sip:${SIP_TRUNK_USER}@${SIP_TRUNK_HOST}
+retry_interval=60
+
+[trunk-auth]
+type=auth
+auth_type=userpass
+username=${SIP_TRUNK_USER}
+password=${SIP_TRUNK_PASSWORD}
+
+[trunk-endpoint]
+type=endpoint
+transport=transport-udp
+context=from-trunk
+disallow=all
+allow=ulaw
+allow=alaw
+allow=opus
+outbound_auth=trunk-auth
+aors=trunk-aor
+direct_media=no
+force_rport=yes
+rewrite_contact=yes
+rtp_symmetric=yes
+from_user=${SIP_TRUNK_USER}
+from_domain=${SIP_TRUNK_HOST}
+
+[trunk-aor]
+type=aor
+contact=sip:${SIP_TRUNK_HOST}
+qualify_frequency=60
+
+[trunk-identify]
+type=identify
+endpoint=trunk-endpoint
+match=${SIP_TRUNK_HOST}
+
+; ===========================================
+; AGENT ENDPOINT - Softphone interno
+; ===========================================
+[${ASTERISK_USER}]
+type=endpoint
+context=call-center
+disallow=all
+allow=ulaw
+allow=alaw
+allow=opus
+auth=${ASTERISK_USER}
+aors=${ASTERISK_USER}
+direct_media=no
+force_rport=yes
+rewrite_contact=yes
+rtp_symmetric=yes
+callerid="AI Agent" <100>
+
+[${ASTERISK_USER}]
+type=auth
+auth_type=userpass
+username=${ASTERISK_USER}
+password=${ASTERISK_PASSWORD}
+
+[${ASTERISK_USER}]
+type=aor
+max_contacts=5
+remove_existing=yes
+
+; ===========================================
+; WEBRTC CLIENT - Para navegador
+; ===========================================
+[webrtc-client]
+type=endpoint
+context=call-center
+disallow=all
+allow=opus
+allow=ulaw
+dtls_auto_generate_cert=yes
+webrtc=yes
+auth=webrtc-auth
+aors=webrtc-aor
+direct_media=no
+force_rport=yes
+rewrite_contact=yes
+ice_support=yes
+use_avpf=yes
+media_use_received_transport=yes
+rtcp_mux=yes
+
+[webrtc-auth]
+type=auth
+auth_type=userpass
+username=webrtc
+password=${WEBRTC_PASSWORD:-webrtc123}
+
+[webrtc-aor]
+type=aor
+max_contacts=10
+remove_existing=yes
+
+; ===========================================
+; ADDITIONAL SOFTPHONE USERS
+; Agrega más usuarios según necesites
+; ===========================================
+[softphone1]
+type=endpoint
+context=call-center
+disallow=all
+allow=ulaw
+allow=alaw
+auth=softphone1-auth
+aors=softphone1-aor
+direct_media=no
+callerid="Softphone 1" <201>
+
+[softphone1-auth]
+type=auth
+auth_type=userpass
+username=softphone1
+password=softphone123
+
+[softphone1-aor]
+type=aor
+max_contacts=2
+
+[softphone2]
+type=endpoint
+context=call-center
+disallow=all
+allow=ulaw
+allow=alaw
+auth=softphone2-auth
+aors=softphone2-aor
+direct_media=no
+callerid="Softphone 2" <202>
+
+[softphone2-auth]
+type=auth
+auth_type=userpass
+username=softphone2
+password=softphone123
+
+[softphone2-aor]
+type=aor
+max_contacts=2

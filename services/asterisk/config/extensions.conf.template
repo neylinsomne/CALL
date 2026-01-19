@@ -1,0 +1,112 @@
+; Extensions Configuration for AI Call Center
+; Inbound + Outbound calling with AI integration
+
+[general]
+static=yes
+writeprotect=no
+
+[globals]
+; Backend WebSocket URL for AI processing
+AI_BACKEND_HOST=backend
+AI_BACKEND_PORT=8000
+
+; ===========================================
+; MAIN CALL CENTER CONTEXT
+; ===========================================
+[call-center]
+
+; === AI Agent (Extension 100) ===
+; Llama aquí para hablar con el AI
+exten => 100,1,NoOp(Incoming call to AI Agent)
+ same => n,Answer()
+ same => n,Wait(0.5)
+ same => n,Set(CONVERSATION_ID=${UNIQUEID})
+ same => n,Set(CHANNEL(audiosocket_path)=/audiosocket/${CONVERSATION_ID})
+ same => n,NoOp(Starting AudioSocket conversation: ${CONVERSATION_ID})
+ same => n,AudioSocket(${CONVERSATION_ID},${AI_BACKEND_HOST}:${AI_BACKEND_PORT})
+ same => n,Hangup()
+
+; === Transfer to Human Agent (Extension 200) ===
+exten => 200,1,NoOp(Transfer to human agent)
+ same => n,Answer()
+ same => n,Playback(es/please-hold)
+ same => n,Queue(human-agents,t,,,120)
+ same => n,Hangup()
+
+; === Outbound Call - AI initiates ===
+; El backend usa esta extensión para llamadas salientes
+exten => _OUTBOUND.,1,NoOp(Outbound AI call to ${EXTEN:8})
+ same => n,Set(CALLERID(num)=${OUTBOUND_CALLERID})
+ same => n,Set(CONVERSATION_ID=${UNIQUEID})
+ same => n,Dial(PJSIP/${EXTEN:8}@trunk-endpoint,60,g)
+ same => n,GotoIf($["${DIALSTATUS}" = "ANSWER"]?answered)
+ same => n,Hangup()
+ same => n(answered),NoOp(Call answered, starting AI conversation)
+ same => n,AudioSocket(${CONVERSATION_ID},${AI_BACKEND_HOST}:${AI_BACKEND_PORT})
+ same => n,Hangup()
+
+; === Direct dial between extensions ===
+exten => _2XX,1,NoOp(Internal call to ${EXTEN})
+ same => n,Dial(PJSIP/${EXTEN},30)
+ same => n,Hangup()
+
+; === External calls via trunk ===
+exten => _9.,1,NoOp(External call to ${EXTEN:1})
+ same => n,Set(CALLERID(num)=${OUTBOUND_CALLERID})
+ same => n,Dial(PJSIP/${EXTEN:1}@trunk-endpoint,60)
+ same => n,Hangup()
+
+; === Emergency / Priority ===
+exten => 911,1,NoOp(Priority call)
+ same => n,Answer()
+ same => n,Playback(es/transferring)
+ same => n,Queue(priority-agents,t,,,60)
+ same => n,Hangup()
+
+; === Status Check ===
+exten => *99,1,Answer()
+ same => n,Playback(silence/1)
+ same => n,SayNumber(${EPOCH})
+ same => n,Hangup()
+
+; === Echo Test ===
+exten => *43,1,Answer()
+ same => n,Playback(demo-echotest)
+ same => n,Echo()
+ same => n,Hangup()
+
+; ===========================================
+; INCOMING FROM SIP TRUNK
+; ===========================================
+[from-trunk]
+; Todas las llamadas entrantes van al AI
+exten => _X.,1,NoOp(Incoming external call from ${CALLERID(num)})
+ same => n,Set(CDR(caller_id)=${CALLERID(num)})
+ same => n,Goto(call-center,100,1)
+
+; Si quieres IVR personalizado:
+;exten => _X.,1,NoOp(Incoming external call)
+; same => n,Answer()
+; same => n,Playback(welcome-message)
+; same => n,WaitExten(5)
+;exten => 1,1,Goto(call-center,100,1)  ; AI
+;exten => 2,1,Goto(call-center,200,1)  ; Human
+
+; ===========================================
+; AMI/ARI FOR OUTBOUND CALLS
+; El backend usa esto para iniciar llamadas
+; ===========================================
+[outbound-api]
+exten => _X.,1,NoOp(API-initiated outbound call to ${EXTEN})
+ same => n,Set(CONVERSATION_ID=${ARG1})
+ same => n,Set(CALLERID(num)=${OUTBOUND_CALLERID})
+ same => n,Originate(PJSIP/${EXTEN}@trunk-endpoint,exten,outbound-connect,s,1,30,a)
+ same => n,Hangup()
+
+[outbound-connect]
+exten => s,1,NoOp(Outbound call connected)
+ same => n,Answer()
+ same => n,Wait(0.5)
+ same => n,Set(CONVERSATION_ID=${UNIQUEID})
+ same => n,AudioSocket(${CONVERSATION_ID},${AI_BACKEND_HOST}:${AI_BACKEND_PORT})
+ same => n,Hangup()

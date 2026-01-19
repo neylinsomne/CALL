@@ -1,0 +1,185 @@
+services:
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: callcenter-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - callcenter-network
+
+  # ===========================================
+  # Backend API + WebSocket Manager
+  # ===========================================
+  backend:
+    build:
+      context: ./services/backend
+      dockerfile: Dockerfile
+    container_name: callcenter-backend
+    restart: unless-stopped
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - TTS_URL=http://tts:8001
+      - STT_URL=http://stt:8002
+      - LLM_URL=http://llm:8003
+      - CALL_CENTER_GREETING=${CALL_CENTER_GREETING}
+    ports:
+      - "${BACKEND_PORT}:8000"
+    volumes:
+      - ./shared/audio:/app/audio
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - callcenter-network
+
+  # ===========================================
+  # Spanish F5-TTS Service
+  # ===========================================
+  tts:
+    build:
+      context: ./services/tts
+      dockerfile: Dockerfile
+    container_name: callcenter-tts
+    restart: unless-stopped
+    environment:
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - TTS_MODEL=${TTS_MODEL}
+      - DEVICE=${TTS_DEVICE}
+    ports:
+      - "${TTS_PORT}:8001"
+    volumes:
+      - ./shared/models:/app/models
+      - ./shared/audio:/app/audio
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    networks:
+      - callcenter-network
+
+  # ===========================================
+  # Whisper STT Service
+  # ===========================================
+  stt:
+    build:
+      context: ./services/stt
+      dockerfile: Dockerfile
+    container_name: callcenter-stt
+    restart: unless-stopped
+    environment:
+      - STT_MODEL=${STT_MODEL}
+      - DEVICE=${STT_DEVICE}
+      - LANGUAGE=${STT_LANGUAGE}
+    ports:
+      - "${STT_PORT}:8002"
+    volumes:
+      - ./shared/models:/app/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    networks:
+      - callcenter-network
+
+  # ===========================================
+  # LLM Service (LangChain + LM Studio)
+  # ===========================================
+  llm:
+    build:
+      context: ./services/llm
+      dockerfile: Dockerfile
+    container_name: callcenter-llm
+    restart: unless-stopped
+    environment:
+      - LM_STUDIO_URL=${LM_STUDIO_URL}
+      - LM_STUDIO_MODEL=${LM_STUDIO_MODEL}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "${LLM_PORT}:8003"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - callcenter-network
+
+  # ===========================================
+  # Asterisk PBX
+  # ===========================================
+  asterisk:
+    build:
+      context: ./services/asterisk
+      dockerfile: Dockerfile
+    container_name: callcenter-asterisk
+    restart: unless-stopped
+    environment:
+      - ASTERISK_USER=${ASTERISK_USER}
+      - ASTERISK_PASSWORD=${ASTERISK_PASSWORD}
+    ports:
+      - "${ASTERISK_SIP_PORT}:5060/udp"
+      - "${ASTERISK_SIP_PORT}:5060/tcp"
+      - "${ASTERISK_WS_PORT}:8088"
+      - "10000-10100:10000-10100/udp" # RTP ports
+    volumes:
+      - ./services/asterisk/config:/etc/asterisk/custom
+      - asterisk_logs:/var/log/asterisk
+    networks:
+      - callcenter-network
+
+  # ===========================================
+  # React Dashboard
+  # ===========================================
+  dashboard:
+    build:
+      context: ./services/dashboard
+      dockerfile: Dockerfile
+    container_name: callcenter-dashboard
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://backend:8000
+    ports:
+      - "${DASHBOARD_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    networks:
+      - callcenter-network
+
+volumes:
+  postgres_data:
+  asterisk_logs:
+
+
+networks:
+  callcenter-network:
+    driver: bridge

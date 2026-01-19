@@ -1,0 +1,180 @@
+# F5-TTS Fine-tuning Configuration
+# Academic standards based on Flow Matching best practices
+
+# ===========================================
+# MODEL CONFIGURATION
+# ===========================================
+model:
+  # Base model to fine-tune
+  base_model: "jpgallegoar/F5-Spanish"
+  
+  # Freezing strategy to prevent catastrophic forgetting
+  freeze_encoder: true
+  freeze_decoder_layers: 8  # Freeze first N decoder layers
+  
+  # DiT (Diffusion Transformer) specific
+  use_pretrained_vocoder: true
+  vocoder: "bigvgan"  # BigVGAN vocoder
+
+
+# ===========================================
+# DATA CONFIGURATION
+# ===========================================
+data:
+  # Audio requirements (Academic standards)
+  sample_rate: 24000          # F5-TTS native rate
+  bit_depth: 16               # 16-bit PCM minimum
+  channels: 1                 # Mono only
+  
+  # Loudness normalization (EBU R128)
+  target_lufs: -23.0
+  lufs_tolerance: 1.0
+  max_peak_db: -1.0           # True peak limit
+  
+  # Segmentation
+  min_duration: 3.0           # seconds
+  max_duration: 15.0          # seconds
+  optimal_duration: 8.0       # Target duration for best results
+  
+  # Text normalization
+  normalize_text: true        # Expand numbers, abbreviations
+  lowercase: false            # Keep original case for proper nouns
+
+
+# ===========================================
+# TRAINING CONFIGURATION
+# ===========================================
+training:
+  # Precision (CRITICAL for Flow Matching stability)
+  # BF16 has same dynamic range as FP32, prevents numerical instability
+  precision: "bf16"           # bfloat16 - HIGHLY RECOMMENDED
+  
+  # Batch configuration
+  # Target 3200-4000 frames per batch for 24GB VRAM
+  batch_size: 4
+  gradient_accumulation_steps: 8  # Effective batch = 32
+  max_frames_per_batch: 3200      # Frame-based batching
+  
+  # Training duration
+  epochs: 500                 # 500-1000 recommended for convergence
+  max_steps: null             # Or specify max steps instead
+  
+  # Learning rate (Low for fine-tuning)
+  learning_rate: 1.0e-5       # 1e-5 to prevent catastrophic forgetting
+  lr_scheduler: "cosine"
+  warmup_steps: 1000
+  warmup_ratio: 0.05
+  min_lr: 1.0e-7
+  
+  # Optimization
+  optimizer: "adamw"
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  
+  # Regularization
+  dropout: 0.1
+  label_smoothing: 0.0
+  
+  # Checkpointing
+  save_every_n_epochs: 10
+  save_total_limit: 5         # Keep last N checkpoints
+  eval_every_n_epochs: 5
+  
+  # Early stopping
+  early_stopping: true
+  patience: 50                # epochs without improvement
+
+
+# ===========================================
+# FLOW MATCHING SPECIFIC
+# ===========================================
+flow_matching:
+  # ODE solver configuration
+  solver: "euler"             # euler, midpoint, or rk4
+  num_steps: 32               # Sampling steps during training validation
+  
+  # Noise schedule
+  sigma_min: 1.0e-4
+  sigma_max: 1.0
+  
+  # Conditioning
+  cfg_scale: 1.0              # Classifier-free guidance during inference
+
+
+# ===========================================
+# INFERENCE CONFIGURATION
+# ===========================================
+inference:
+  # Voice cloning reference audio
+  max_ref_duration: 15.0      # DO NOT exceed 20-30s
+  optimal_ref_duration: 12.0  # 10-15s is ideal
+  
+  # Generation
+  temperature: 1.0
+  top_p: 0.9
+  repetition_penalty: 1.0
+  
+  # Speed control
+  min_speed: 0.5
+  max_speed: 2.0
+  default_speed: 1.0
+
+
+# ===========================================
+# HARDWARE REQUIREMENTS
+# ===========================================
+hardware:
+  # Minimum requirements
+  gpu_vram_min: 8             # GB - minimum for small batches
+  gpu_vram_recommended: 24    # GB - for optimal batch size
+  
+  # CUDA settings
+  cuda_visible_devices: "0"
+  cudnn_benchmark: true
+  cudnn_deterministic: false
+  
+  # Memory optimization
+  gradient_checkpointing: true
+  use_flash_attention: true   # If available
+
+
+# ===========================================
+# LOGGING
+# ===========================================
+logging:
+  log_every_n_steps: 10
+  tensorboard: true
+  wandb: false
+  log_dir: "./logs"
+  
+  # Audio samples during training
+  log_audio_samples: true
+  num_audio_samples: 3
+
+
+# ===========================================
+# VALIDATION METRICS
+# ===========================================
+metrics:
+  # Synthesis quality
+  compute_mel_cepstral_distortion: true
+  compute_speaker_similarity: true    # Requires speaker encoder
+  
+  # Prosody
+  compute_pitch_correlation: true
+  compute_energy_correlation: true
+
+
+# ===========================================
+# ADVANCED: Curriculum Learning
+# ===========================================
+curriculum:
+  enabled: false
+  # Start with shorter utterances, gradually increase
+  stages:
+    - max_duration: 5.0
+      epochs: 100
+    - max_duration: 10.0
+      epochs: 200
+    - max_duration: 15.0
+      epochs: 200

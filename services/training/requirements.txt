@@ -1,0 +1,15 @@
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy==1.26.3
+soundfile==0.12.1
+scipy==1.12.0
+librosa==0.10.1
+pydub==0.25.1
+faster-whisper==1.0.1
+datasets==2.16.1
+transformers==4.37.0
+accelerate==0.26.1
+tensorboard==2.15.1
+tqdm==4.66.1
+pyyaml==6.0.1
+click==8.1.7

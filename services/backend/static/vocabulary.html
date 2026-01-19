@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Vocabulario - AI Call Center</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-card: #16213e;
+            --accent: #00d4ff;
+            --accent-purple: #a855f7;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --success: #00ff88;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, var(--accent), var(--accent-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            background: var(--bg-card);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover,
+        .tab.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+            color: white;
+            border-color: transparent;
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            height: fit-content;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .category-list {
+            list-style: none;
+        }
+
+        .category-item {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .category-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .category-item.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+        }
+
+        .category-count {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        /* Search & Actions */
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        select {
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-input {
+            flex: 1;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-purple));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        /* Word Grid */
+        .word-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .word-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .word-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .word-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .word-phonetic {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        .word-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.has-audio {
+            background: var(--success);
+        }
+
+        .status-dot.no-audio {
+            background: var(--danger);
+        }
+
+        .word-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid var(--border);
+        }
+
+        .modal h2 {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-primary);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .modal-actions button {
+            flex: 1;
+        }
+
+        /* Recording Section */
+        .recording-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .recording-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .record-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--danger);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .record-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .record-btn.recording {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 0 15px rgba(255, 71, 87, 0);
+            }
+        }
+
+        .waveform {
+            flex: 1;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        /* Guide Panel */
+        .guide-panel {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--accent);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .guide-panel h3 {
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .guide-item {
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .guide-item.done {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🎤 Gestión de Vocabulario</h1>
+            <div class="stats-bar">
+                <div class="stat">
+                    <div class="stat-value" id="totalWords">0</div>
+                    <div class="stat-label">Palabras</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="withAudio">0</div>
+                    <div class="stat-label">Con Audio</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="coverage">0%</div>
+                    <div class="stat-label">Cobertura</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="duration">0 min</div>
+                    <div class="stat-label">Duración Total</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="words">📝 Palabras</button>
+            <button class="tab" data-tab="phrases">💬 Frases</button>
+            <button class="tab" data-tab="guides">📋 Guías de Grabación</button>
+            <button class="tab" data-tab="record">🎙️ Grabar</button>
+        </div>
+
+        <div class="grid">
+            <aside class="sidebar">
+                <h3>📁 Categorías</h3>
+                <ul class="category-list" id="categoryList"></ul>
+                <button class="btn-secondary" style="width:100%; margin-top:1rem" onclick="showAddCategoryModal()">
+                    + Nueva Categoría
+                </button>
+            </aside>
+
+            <main class="main-content">
+                <!-- Words Tab -->
+                <div id="wordsTab" class="tab-content">
+                    <div class="toolbar">
+                        <input type="text" class="search-input" placeholder="Buscar palabra..." id="searchWords">
+                        <select id="filterAudio">
+                            <option value="">Todos</option>
+                            <option value="with">Con audio</option>
+                            <option value="without">Sin audio</option>
+                        </select>
+                        <button class="btn-primary" onclick="showAddWordModal()">+ Agregar Palabra</button>
+                        <button class="btn-secondary" onclick="showBulkAddModal()">📋 Agregar Múltiples</button>
+                    </div>
+                    <div class="word-grid" id="wordGrid"></div>
+                </div>
+
+                <!-- Phrases Tab -->
+                <div id="phrasesTab" class="tab-content" style="display:none">
+                    <div class="toolbar">
+                        <input type="text" class="search-input" placeholder="Buscar frase..." id="searchPhrases">
+                        <button class="btn-primary" onclick="showAddPhraseModal()">+ Agregar Frase</button>
+                    </div>
+                    <div class="word-grid" id="phraseGrid"></div>
+                </div>
+
+                <!-- Guides Tab -->
+                <div id="guidesTab" class="tab-content" style="display:none">
+                    <div class="toolbar">
+                        <button class="btn-primary" onclick="showCreateGuideModal()">+ Crear Guía</button>
+                        <button class="btn-secondary" onclick="generateAutoGuide()">🔄 Generar Guía Automática</button>
+                    </div>
+                    <div id="guidesList"></div>
+                </div>
+
+                <!-- Record Tab -->
+                <div id="recordTab" class="tab-content" style="display:none">
+                    <div class="guide-panel" id="recordingGuide">
+                        <h3>📋 Guía de Grabación Activa</h3>
+                        <p>Selecciona una guía o genera una automática para empezar a grabar.</p>
+                    </div>
+                    <div class="recording-section">
+                        <h3 style="margin-bottom:1rem">🎤 Grabar Audio</h3>
+                        <div id="currentWord" style="font-size:2rem; text-align:center; margin-bottom:1rem">
+                            Selecciona una palabra
+                        </div>
+                        <div class="recording-controls">
+                            <button class="record-btn" id="recordBtn" onclick="toggleRecording()">🎤</button>
+                            <div class="waveform" id="waveform"></div>
+                            <button class="btn-secondary" onclick="playRecording()">▶️ Reproducir</button>
+                            <button class="btn-primary" onclick="saveRecording()">💾 Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Word Modal -->
+    <div class="modal-overlay" id="addWordModal">
+        <div class="modal">
+            <h2>➕ Agregar Palabra</h2>
+            <form id="addWordForm">
+                <div class="form-group">
+                    <label>Palabra *</label>
+                    <input type="text" name="word" required>
+                </div>
+                <div class="form-group">
+                    <label>Pronunciación (IPA)</label>
+                    <input type="text" name="phonetic" placeholder="ˈfeɪsbʊk">
+                </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select name="category_id" id="wordCategorySelect"></select>
+                </div>
+                <div class="form-group">
+                    <label>Audio (opcional)</label>
+                    <input type="file" name="audio" accept="audio/*">
+                </div>
+                <div class="form-group">
+                    <label>Notas</label>
+                    <textarea name="notes" placeholder="Contexto de uso, pronunciación especial..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addWordModal')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Add Modal -->
+    <div class="modal-overlay" id="bulkAddModal">
+        <div class="modal">
+            <h2>📋 Agregar Múltiples Palabras</h2>
+            <form id="bulkAddForm">
+                <div class="form-group">
+                    <label>Palabras (una por línea)</label>
+                    <textarea name="words" rows="10" placeholder="Facebook
+Instagram
+WhatsApp
+Google"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select name="category_id" id="bulkCategorySelect"></select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('bulkAddModal')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Agregar Todas</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/vocabulary';
+        let currentCategory = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let currentRecordingWord = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadCategories();
+            loadWords();
+            setupTabs();
+            setupForms();
+        });
+
+        // Tab switching
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+                    document.getElementById(tab.dataset.tab + 'Tab').style.display = 'block';
+
+                    if (tab.dataset.tab === 'phrases') loadPhrases();
+                    if (tab.dataset.tab === 'guides') loadGuides();
+                });
+            });
+        }
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_BASE}/stats`);
+                const stats = await res.json();
+                document.getElementById('totalWords').textContent = stats.total_words;
+                document.getElementById('withAudio').textContent = stats.words_with_audio;
+                document.getElementById('coverage').textContent = stats.coverage_percent.toFixed(0) + '%';
+                document.getElementById('duration').textContent = stats.total_audio_duration_minutes.toFixed(1) + ' min';
+            } catch (e) {
+                console.error('Error loading stats:', e);
+            }
+        }
+
+        // Load categories
+        async function loadCategories() {
+            try {
+                const res = await fetch(`${API_BASE}/categories`);
+                const data = await res.json();
+
+                const list = document.getElementById('categoryList');
+                list.innerHTML = `
+                    <li class="category-item ${!currentCategory ? 'active' : ''}" onclick="selectCategory(null)">
+                        <span>📁 Todas</span>
+                    </li>
+                `;
+
+                data.categories.forEach(cat => {
+                    list.innerHTML += `
+                        <li class="category-item ${currentCategory === cat.id ? 'active' : ''}" 
+                            onclick="selectCategory('${cat.id}')">
+                            <span>${cat.name}</span>
+                            <span class="category-count">${cat.word_count || 0}</span>
+                        </li>
+                    `;
+                });
+
+                // Update category selects
+                const options = '<option value="">Sin categoría</option>' +
+                    data.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                document.getElementById('wordCategorySelect').innerHTML = options;
+                document.getElementById('bulkCategorySelect').innerHTML = options;
+            } catch (e) {
+                console.error('Error loading categories:', e);
+            }
+        }
+
+        function selectCategory(categoryId) {
+            currentCategory = categoryId;
+            loadCategories();
+            loadWords();
+        }
+
+        // Load words
+        async function loadWords() {
+            try {
+                let url = `${API_BASE}/words?`;
+                if (currentCategory) url += `category_id=${currentCategory}&`;
+
+                const search = document.getElementById('searchWords')?.value;
+                if (search) url += `search=${encodeURIComponent(search)}&`;
+
+                const filter = document.getElementById('filterAudio')?.value;
+                if (filter === 'with') url += 'has_audio=true&';
+                if (filter === 'without') url += 'has_audio=false&';
+
+                const res = await fetch(url);
+                const data = await res.json();
+
+                const grid = document.getElementById('wordGrid');
+                grid.innerHTML = data.words.map(word => `
+                    <div class="word-card" data-id="${word.id}">
+                        <div class="word-text">${word.word}</div>
+                        ${word.phonetic ? `<div class="word-phonetic">/${word.phonetic}/</div>` : ''}
+                        <div class="word-status">
+                            <span class="status-dot ${word.audio_path ? 'has-audio' : 'no-audio'}"></span>
+                            <span>${word.audio_path ? 'Audio grabado' : 'Sin audio'}</span>
+                        </div>
+                        <div class="word-actions">
+                            ${word.audio_path ?
+                        `<button class="btn-sm btn-secondary" onclick="playWordAudio('${word.id}')">▶️</button>` :
+                        `<button class="btn-sm btn-primary" onclick="recordWord('${word.id}', '${word.word}')">🎤</button>`
+                    }
+                            <button class="btn-sm btn-secondary" onclick="uploadWordAudio('${word.id}')">📤</button>
+                            <button class="btn-sm btn-danger" onclick="deleteWord('${word.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading words:', e);
+            }
+        }
+
+        // Forms
+        function setupForms() {
+            document.getElementById('addWordForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+
+                try {
+                    const res = await fetch(`${API_BASE}/words`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (res.ok) {
+                        closeModal('addWordModal');
+                        loadWords();
+                        loadStats();
+                        loadCategories();
+                        e.target.reset();
+                    }
+                } catch (e) {
+                    console.error('Error adding word:', e);
+                }
+            });
+
+            document.getElementById('bulkAddForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const words = e.target.words.value.split('\n').filter(w => w.trim());
+                const category_id = e.target.category_id.value;
+
+                for (const word of words) {
+                    const formData = new FormData();
+                    formData.append('word', word.trim());
+                    if (category_id) formData.append('category_id', category_id);
+
+                    await fetch(`${API_BASE}/words`, { method: 'POST', body: formData });
+                }
+
+                closeModal('bulkAddModal');
+                loadWords();
+                loadStats();
+                loadCategories();
+            });
+
+            // Search
+            document.getElementById('searchWords').addEventListener('input', loadWords);
+            document.getElementById('filterAudio').addEventListener('change', loadWords);
+        }
+
+        // Modals
+        function showAddWordModal() { document.getElementById('addWordModal').classList.add('active'); }
+        function showBulkAddModal() { document.getElementById('bulkAddModal').classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        // Audio functions
+        async function playWordAudio(wordId) {
+            const audio = new Audio(`${API_BASE}/words/${wordId}/audio`);
+            audio.play();
+        }
+
+        function recordWord(wordId, word) {
+            currentRecordingWord = { id: wordId, word };
+            document.querySelectorAll('.tab')[3].click(); // Switch to Record tab
+            document.getElementById('currentWord').textContent = word;
+        }
+
+        async function toggleRecording() {
+            const btn = document.getElementById('recordBtn');
+
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.start();
+                btn.classList.add('recording');
+                btn.textContent = '⏹️';
+            } else {
+                mediaRecorder.stop();
+                btn.classList.remove('recording');
+                btn.textContent = '🎤';
+            }
+        }
+
+        async function saveRecording() {
+            if (!currentRecordingWord || audioChunks.length === 0) return;
+
+            const blob = new Blob(audioChunks, { type: 'audio/wav' });
+            const formData = new FormData();
+            formData.append('audio', blob, 'recording.wav');
+
+            try {
+                await fetch(`${API_BASE}/words/${currentRecordingWord.id}/audio`, {
+                    method: 'POST',
+                    body: formData
+                });
+                alert('Audio guardado!');
+                loadWords();
+                loadStats();
+            } catch (e) {
+                console.error('Error saving audio:', e);
+            }
+        }
+
+        async function deleteWord(wordId) {
+            if (!confirm('¿Eliminar esta palabra?')) return;
+            await fetch(`${API_BASE}/words/${wordId}`, { method: 'DELETE' });
+            loadWords();
+            loadStats();
+            loadCategories();
+        }
+
+        // Guides
+        async function loadGuides() {
+            const res = await fetch(`${API_BASE}/guides`);
+            const data = await res.json();
+
+            document.getElementById('guidesList').innerHTML = data.guides.map(g => `
+                <div class="word-card" style="margin-bottom:1rem">
+                    <div class="word-text">${g.name}</div>
+                    <p style="color:var(--text-secondary)">${g.items?.length || 0} items • ${g.estimated_duration_minutes?.toFixed(0) || 0} min</p>
+                    <div class="word-actions">
+                        <button class="btn-sm btn-primary" onclick="useGuide('${g.id}')">📋 Usar</button>
+                        <button class="btn-sm btn-secondary" onclick="exportGuide('${g.id}')">📤 Exportar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function generateAutoGuide() {
+            const words = await (await fetch(`${API_BASE}/words?has_audio=false`)).json();
+            const items = words.words.slice(0, 50).map(w => w.word);
+
+            if (items.length === 0) {
+                alert('Todas las palabras ya tienen audio!');
+                return;
+            }
+
+            await fetch(`${API_BASE}/guides`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: 'Guía Automática ' + new Date().toLocaleDateString(),
+                    description: 'Palabras pendientes de grabar',
+                    items
+                })
+            });
+            loadGuides();
+        }
+
+        // Load phrases
+        async function loadPhrases() {
+            const res = await fetch(`${API_BASE}/phrases`);
+            const data = await res.json();
+
+            document.getElementById('phraseGrid').innerHTML = data.phrases.map(p => `
+                <div class="word-card">
+                    <div class="word-text">${p.phrase}</div>
+                    ${p.context ? `<div class="word-phonetic">${p.context}</div>` : ''}
+                    <div class="word-status">
+                        <span class="status-dot ${p.audio_path ? 'has-audio' : 'no-audio'}"></span>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+
+</html>

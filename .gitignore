@@ -1,0 +1,33 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Models (large files)
+shared/models/*.pt
+shared/models/*.bin
+shared/models/*.safetensors
+
+# Audio files
+shared/audio/*.wav
+shared/audio/*.mp3
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+*.tar
+
+# Training checkpoints (optional - uncomment to ignore)
+# services/training/checkpoints/
