@@ -332,10 +332,10 @@ def correct_word(word, confidence):
 
 | Método | Velocidad | Precisión | Cobertura | Costo |
 |--------|-----------|-----------|-----------|-------|
-| Solo Exacto | ⚡⚡⚡ | ⭐⭐ | 20% | Bajo |
-| Solo Vectores | ⚡ | ⭐⭐⭐⭐⭐ | 80% | Alto |
-| Solo Fonético | ⚡⚡ | ⭐⭐⭐ | 40% | Bajo |
-| **HÍBRIDO** | ⚡⚡ | ⭐⭐⭐⭐⭐ | 95% | Medio |
+| Solo Exacto |  |  | 20% | Bajo |
+| Solo Vectores |  |  | 80% | Alto |
+| Solo Fonético |  |  | 40% | Bajo |
+| **HÍBRIDO** |  |  | 95% | Medio |
 
 ---
 
@@ -345,8 +345,8 @@ def correct_word(word, confidence):
 
 #### Método 1: Solo Exacto
 ```
-"salgo" → ❌ No encontrado en diccionario
-"cuesta" → ❌ No encontrado
+"salgo" →  No encontrado en diccionario
+"cuesta" →  No encontrado
 Resultado: Sin corrección
 ```
 
@@ -549,7 +549,7 @@ for w1, w2 in pairs:
 
 **Para tu Call Center:**
 
-✅ **Usa el Sistema Híbrido** ([error_correction_hybrid.py](services/stt/error_correction_hybrid.py))
+ **Usa el Sistema Híbrido** ([error_correction_hybrid.py](services/stt/error_correction_hybrid.py))
 
 Combina:
 1. **Diccionario exacto** para 95% de casos comunes (rápido)

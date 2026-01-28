@@ -149,7 +149,7 @@ transcript = transcriber.transcribe(audio_url)
 for word in transcript.words:
     print(f"{word.text} (confidence: {word.confidence})")
     if word.confidence < 0.7:
-        print(f"  ⚠️ Baja confianza en: {word.text}")
+        print(f"   Baja confianza en: {word.text}")
 ```
 
 ### 3. Deepgram (Más Rápido del Mercado)
@@ -1122,11 +1122,11 @@ segments, info = whisper_model.transcribe(
 ## Roadmap de Mejora
 
 ### Corto Plazo - COMPLETADO
-- ✅ Implementar confidence scoring por palabra
-- ✅ Agregar banco de errores comunes
-- ✅ Sistema básico de clarificación
-- ✅ Endpoint `/transcribe/enhanced`
-- ✅ Aprendizaje desde correcciones
+-  Implementar confidence scoring por palabra
+-  Agregar banco de errores comunes
+-  Sistema básico de clarificación
+-  Endpoint `/transcribe/enhanced`
+-  Aprendizaje desde correcciones
 
 ### Medio Plazo (1 mes)
 1. Fine-tuning de Whisper con datos reales del call center

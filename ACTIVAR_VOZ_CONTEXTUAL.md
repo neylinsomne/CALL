@@ -205,7 +205,7 @@ ws.onmessage = (event) => {
         showIndicator('Esperando más audio...');
       }
       if (data.data.is_question) {
-        showIcon('❓');
+        showIcon('');
       }
       break;
 

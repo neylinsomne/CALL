@@ -13,7 +13,7 @@ Este directorio contiene scripts académicamente rigurosos para personalizar la 
 | True Peak | -1 dBTP | Evita distorsión |
 | Duración | 5-15 segundos | Atención cuadrática limita longitud |
 
-## 🎙️ Corpus de Entrenamiento
+## 🎙 Corpus de Entrenamiento
 
 ### Opción 1: Corpus Sharvard (Recomendado)
 ```bash
@@ -128,7 +128,7 @@ tensorboard --logdir=services/training/checkpoints/logs
 
 ---
 
-## ⚠️ Errores Comunes
+##  Errores Comunes
 
 ### "Audio repite en lugar de generar"
 **Causa**: Audio de referencia >30 segundos

@@ -125,7 +125,7 @@ if pitch_trend > 1.15:  # 15% de subida
 **Ejemplo:**
 ```
 Usuario: "¿Cómo puedo resetear mi contraseña?"
-         └─────────────────────────────────↗️
+         └─────────────────────────────────↗
 
 Pitch: 140Hz → 150Hz → 165Hz → 175Hz
 Tendencia: 175/140 = 1.25
@@ -149,7 +149,7 @@ if mean(last_third) > mean(first_third) * 1.10:
 
 ```
 ¿Cómo funciona esto?
-      ─────↗️
+      ─────↗
 Pitch: +10-15%
 ```
 
@@ -158,7 +158,7 @@ Pitch: +10-15%
 
 ```
 ¿Esto es correcto?
-          ────↗️↗️
+          ────↗↗
 Pitch: +20-30%
 ```
 
@@ -167,7 +167,7 @@ Pitch: +20-30%
 
 ```
 ¿No es obvio?
-    ────↘️
+    ────↘
 Pitch: -5-10%
 ```
 
@@ -329,7 +329,7 @@ Audio Entrante
 
 **Uso en UI:**
 - Mostrar indicador "Esperando..." si `should_wait = true`
-- Mostrar "❓" si `is_question = true`
+- Mostrar "" si `is_question = true`
 - Mostrar emoji según `emotional_tone`
 
 #### Mensaje: transcription (mejorado)
