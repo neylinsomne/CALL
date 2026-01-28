@@ -135,6 +135,34 @@ services:
       - callcenter-network
 
   # ===========================================
+  # Audio Preprocessing (Noise Suppression + Speaker ID)
+  # ===========================================
+  audio_preprocess:
+    build:
+      context: ./services/audio_preprocess
+      dockerfile: Dockerfile
+    container_name: callcenter-audio-preprocess
+    restart: unless-stopped
+    environment:
+      - DEVICE=${AUDIO_DEVICE:-cuda}
+      - SAMPLE_RATE=16000
+      - DENOISE_MODEL=deepfilternet
+    ports:
+      - "${AUDIO_PREPROCESS_PORT:-8004}:8004"
+    volumes:
+      - ./shared/models:/app/models
+      - audio_preprocess_data:/app/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    networks:
+      - callcenter-network
+
+  # ===========================================
   # Asterisk PBX
   # ===========================================
   asterisk:
@@ -169,15 +197,14 @@ services:
     environment:
       - VITE_API_URL=http://backend:8000
     ports:
-      - "${DASHBOARD_PORT:-3000}:3000"
-    depends_on:
-      - backend
+      - "${DASHBOARD_PORT:-3001}:3000"
     networks:
       - callcenter-network
 
 volumes:
   postgres_data:
   asterisk_logs:
+  audio_preprocess_data:
 
 
 networks:

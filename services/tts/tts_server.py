@@ -7,8 +7,10 @@ import os
 import io
 import base64
 import uuid
-from typing import Optional
+import hashlib
+from typing import Optional, Dict
 from pathlib import Path
+from collections import OrderedDict
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import Response
@@ -16,6 +18,15 @@ from pydantic import BaseModel
 import torch
 import soundfile as sf
 import numpy as np
+from loguru import logger
+
+# Configure logging
+logger.add(
+    "logs/tts_{time}.log",
+    rotation="100 MB",
+    retention="7 days",
+    level="INFO"
+)
 
 # F5-TTS imports (installed via git+https://github.com/jpgallegoar/Spanish-F5)
 try:
@@ -32,9 +43,50 @@ DEVICE = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 MODEL_PATH = os.getenv("TTS_MODEL", "jpgallegoar/F5-Spanish")
 AUDIO_OUTPUT_DIR = Path("/app/audio")
 AUDIO_OUTPUT_DIR.mkdir(exist_ok=True)
+VOICE_REFERENCES_DIR = AUDIO_OUTPUT_DIR / "voice_references"
+VOICE_REFERENCES_DIR.mkdir(exist_ok=True)
 
 # Reference audio for voice cloning (optional)
 REFERENCE_AUDIO_PATH = os.getenv("REFERENCE_AUDIO", None)
+
+# Cache configuration
+CACHE_MAX_SIZE = int(os.getenv("TTS_CACHE_SIZE", "100"))
+
+
+# ===========================================
+# LRU Cache for Synthesis
+# ===========================================
+class LRUCache:
+    """Simple LRU cache for TTS synthesis results"""
+    
+    def __init__(self, max_size: int = 100):
+        self.cache: OrderedDict = OrderedDict()
+        self.max_size = max_size
+    
+    def get(self, key: str) -> Optional[Dict]:
+        if key in self.cache:
+            self.cache.move_to_end(key)
+            logger.debug(f"Cache hit for key: {key[:16]}...")
+            return self.cache[key]
+        return None
+    
+    def set(self, key: str, value: Dict):
+        if key in self.cache:
+            self.cache.move_to_end(key)
+        else:
+            if len(self.cache) >= self.max_size:
+                oldest = next(iter(self.cache))
+                del self.cache[oldest]
+                logger.debug(f"Cache evicted oldest: {oldest[:16]}...")
+            self.cache[key] = value
+    
+    def make_key(self, text: str, ref_path: Optional[str] = None) -> str:
+        """Generate cache key from text and reference audio path"""
+        content = f"{text}:{ref_path or 'default'}"
+        return hashlib.md5(content.encode()).hexdigest()
+
+
+synthesis_cache = LRUCache(max_size=CACHE_MAX_SIZE)
 
 
 # ===========================================
@@ -115,6 +167,17 @@ async def synthesize(request: SynthesizeRequest):
         raise HTTPException(status_code=503, detail="TTS model not loaded")
     
     try:
+        # Determine reference audio path for cache key
+        ref_path = request.reference_audio or REFERENCE_AUDIO_PATH
+        
+        # Check cache first (only for non-byte requests with default speed)
+        if not request.return_bytes and request.speed == 1.0:
+            cache_key = synthesis_cache.make_key(request.text, ref_path)
+            cached = synthesis_cache.get(cache_key)
+            if cached:
+                logger.info(f"Cache hit for text: {request.text[:30]}...")
+                return SynthesizeResponse(**cached)
+        
         # Handle reference audio
         ref_audio = None
         ref_text = request.reference_text or ""
@@ -131,6 +194,8 @@ async def synthesize(request: SynthesizeRequest):
                 ref_audio = request.reference_audio
         elif REFERENCE_AUDIO_PATH and os.path.exists(REFERENCE_AUDIO_PATH):
             ref_audio = REFERENCE_AUDIO_PATH
+        
+        logger.info(f"Synthesizing: {request.text[:50]}...")
         
         # Generate speech
         if F5TTS is not None:
@@ -170,11 +235,20 @@ async def synthesize(request: SynthesizeRequest):
         sf.write(buffer, audio, sample_rate, format='WAV')
         audio_base64 = base64.b64encode(buffer.getvalue()).decode()
         
-        return SynthesizeResponse(
-            audio_url=f"/audio/{audio_id}.wav",
-            audio_base64=audio_base64,
-            duration_seconds=duration
-        )
+        response_data = {
+            "audio_url": f"/audio/{audio_id}.wav",
+            "audio_base64": audio_base64,
+            "duration_seconds": duration
+        }
+        
+        # Store in cache
+        if request.speed == 1.0:
+            cache_key = synthesis_cache.make_key(request.text, ref_path)
+            synthesis_cache.set(cache_key, response_data)
+            logger.debug(f"Cached synthesis for: {request.text[:30]}...")
+        
+        return SynthesizeResponse(**response_data)
+        
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

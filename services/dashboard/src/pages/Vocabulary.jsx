@@ -84,7 +84,7 @@ function RecordingModal({ word, onClose, onSave }) {
     return (
         <div className="modal-overlay active" onClick={onClose}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-                <h2 style={{ marginBottom: '1.5rem' }}>🎤 Grabar: {word.word}</h2>
+                <h2 style={{ marginBottom: '1.5rem' }}>Grabar: {word.word}</h2>
 
                 <div style={{
                     textAlign: 'center',
@@ -121,7 +121,7 @@ function RecordingModal({ word, onClose, onSave }) {
 
                     <div style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                         {isRecording ? 'Grabando... Click para detener' :
-                            hasRecording ? '✓ Grabación lista' : 'Click para grabar'}
+                            hasRecording ? 'Grabacion lista' : 'Click para grabar'}
                     </div>
                 </div>
 
@@ -164,7 +164,7 @@ export default function Vocabulary() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-                        🎤 Vocabulario y Entrenamiento de Voz
+                        Vocabulario y Entrenamiento de Voz
                     </h1>
                     <p style={{ color: 'var(--text-secondary)' }}>
                         Gestiona el corpus de audio para fine-tuning del modelo TTS
@@ -206,19 +206,19 @@ export default function Vocabulary() {
                     className={`tab ${activeTab === 'words' ? 'active' : ''}`}
                     onClick={() => setActiveTab('words')}
                 >
-                    📝 Palabras
+                    Palabras
                 </button>
                 <button
                     className={`tab ${activeTab === 'guides' ? 'active' : ''}`}
                     onClick={() => setActiveTab('guides')}
                 >
-                    📋 Guías de Grabación
+                    Guias de Grabacion
                 </button>
                 <button
                     className={`tab ${activeTab === 'training' ? 'active' : ''}`}
                     onClick={() => setActiveTab('training')}
                 >
-                    🎓 Entrenamiento
+                    Entrenamiento
                 </button>
             </div>
 
@@ -308,22 +308,22 @@ export default function Vocabulary() {
 
             {activeTab === 'training' && (
                 <div className="card">
-                    <h3 style={{ marginBottom: '1rem' }}>🎓 Estado del Entrenamiento</h3>
+                    <h3 style={{ marginBottom: '1rem' }}>Estado del Entrenamiento</h3>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
                         <div style={{ padding: '1.5rem', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📊</div>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-blue)', margin: '0 auto 0.5rem' }} />
                             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-blue)' }}>
                                 {(MOCK_WORDS.filter(w => w.hasAudio).reduce((acc, w) => acc + (w.duration || 0), 0) / 60).toFixed(1)} min
                             </div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Audio Total</div>
                         </div>
                         <div style={{ padding: '1.5rem', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🎯</div>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-green)', margin: '0 auto 0.5rem' }} />
                             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-green)' }}>92%</div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cobertura Fonética</div>
                         </div>
                         <div style={{ padding: '1.5rem', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✨</div>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-purple)', margin: '0 auto 0.5rem' }} />
                             <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-purple)' }}>-23 LUFS</div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Normalización</div>
                         </div>
@@ -352,7 +352,7 @@ export default function Vocabulary() {
                             </div>
                         </div>
                         <button className="btn btn-primary" style={{ marginTop: '1.5rem' }}>
-                            🚀 Iniciar Fine-tuning
+                            Iniciar Fine-tuning
                         </button>
                     </div>
                 </div>

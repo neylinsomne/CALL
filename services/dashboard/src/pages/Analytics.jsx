@@ -54,7 +54,7 @@ export default function Analytics() {
                 {/* Calls Trend */}
                 <div className="card">
                     <div className="card-header">
-                        <h3 className="card-title">📈 Tendencia de Llamadas</h3>
+                        <h3 className="card-title">Tendencia de Llamadas</h3>
                     </div>
                     <div className="chart-container">
                         <ResponsiveContainer width="100%" height="100%">
@@ -78,7 +78,7 @@ export default function Analytics() {
                 {/* Satisfaction Trend */}
                 <div className="card">
                     <div className="card-header">
-                        <h3 className="card-title">⭐ Tendencia de Satisfacción</h3>
+                        <h3 className="card-title">Tendencia de Satisfaccion</h3>
                     </div>
                     <div className="chart-container">
                         <ResponsiveContainer width="100%" height="100%">
@@ -99,7 +99,7 @@ export default function Analytics() {
                 {/* Emotions Trend */}
                 <div className="card">
                     <div className="card-header">
-                        <h3 className="card-title">😊 Tendencia de Emociones</h3>
+                        <h3 className="card-title">Tendencia de Emociones</h3>
                     </div>
                     <div className="chart-container">
                         <ResponsiveContainer width="100%" height="100%">
@@ -121,7 +121,7 @@ export default function Analytics() {
                 {/* Emotion Distribution Pie */}
                 <div className="card">
                     <div className="card-header">
-                        <h3 className="card-title">🎯 Distribución de Emociones</h3>
+                        <h3 className="card-title">Distribucion de Emociones</h3>
                     </div>
                     <div className="chart-container" style={{ display: 'flex', alignItems: 'center' }}>
                         <ResponsiveContainer width="60%" height="100%">
@@ -161,7 +161,7 @@ export default function Analytics() {
                                         borderRadius: '3px',
                                         background: pieColors[i]
                                     }} />
-                                    <span style={{ fontSize: '1rem' }}>{EMOTIONS[key]?.icon}</span>
+                                    <span style={{ fontSize: '1rem' }}></span>
                                     <span style={{ flex: 1 }}>{EMOTIONS[key]?.label}</span>
                                     <span style={{ fontWeight: 600 }}>{value}%</span>
                                 </div>
@@ -176,7 +176,7 @@ export default function Analytics() {
                 {/* Calls by Hour */}
                 <div className="card">
                     <div className="card-header">
-                        <h3 className="card-title">🕐 Llamadas por Hora</h3>
+                        <h3 className="card-title">Llamadas por Hora</h3>
                     </div>
                     <div className="chart-container">
                         <ResponsiveContainer width="100%" height="100%">
@@ -194,7 +194,7 @@ export default function Analytics() {
                 {/* Category Distribution */}
                 <div className="card">
                     <div className="card-header">
-                        <h3 className="card-title">📊 Llamadas por Categoría</h3>
+                        <h3 className="card-title">Llamadas por Categoria</h3>
                     </div>
                     <div className="chart-container">
                         <ResponsiveContainer width="100%" height="100%">

@@ -10,6 +10,7 @@ import CallDetail from './pages/CallDetail';
 import Agents from './pages/Agents';
 import AgentProfile from './pages/AgentProfile';
 import Analytics from './pages/Analytics';
+import SentimentAnalytics from './pages/SentimentAnalytics';
 import Vocabulary from './pages/Vocabulary';
 import KnowledgeBase from './pages/KnowledgeBase';
 
@@ -62,6 +63,7 @@ function App() {
                             <Route path="/agents" element={<Agents />} />
                             <Route path="/agents/:id" element={<AgentProfile />} />
                             <Route path="/analytics" element={<Analytics />} />
+                            <Route path="/emotions" element={<SentimentAnalytics />} />
                             <Route path="/vocabulary" element={<Vocabulary />} />
                             <Route path="/knowledge" element={<KnowledgeBase />} />
                             <Route path="*" element={<Navigate to="/" />} />

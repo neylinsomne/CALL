@@ -74,7 +74,7 @@ export const MOCK_AGENTS = [
     {
         id: 'agent-4',
         name: 'AI Assistant',
-        avatar: '🤖',
+        avatar: 'AI',
         status: 'online',
         department: 'AI',
         totalCalls: 1245,
@@ -101,12 +101,12 @@ export const MOCK_AGENTS = [
 // EMOTIONS
 // ===========================================
 export const EMOTIONS = {
-    happy: { label: 'Feliz', color: '#10b981', icon: '😊' },
-    neutral: { label: 'Neutral', color: '#6b7280', icon: '😐' },
-    frustrated: { label: 'Frustrado', color: '#f59e0b', icon: '😤' },
-    angry: { label: 'Enojado', color: '#ef4444', icon: '😠' },
-    sad: { label: 'Triste', color: '#8b5cf6', icon: '😢' },
-    satisfied: { label: 'Satisfecho', color: '#06b6d4', icon: '😌' }
+    happy: { label: 'Feliz', color: '#10b981', icon: null },
+    neutral: { label: 'Neutral', color: '#6b7280', icon: null },
+    frustrated: { label: 'Frustrado', color: '#f59e0b', icon: null },
+    angry: { label: 'Enojado', color: '#ef4444', icon: null },
+    sad: { label: 'Triste', color: '#8b5cf6', icon: null },
+    satisfied: { label: 'Satisfecho', color: '#06b6d4', icon: null }
 };
 
 // ===========================================
@@ -374,6 +374,102 @@ export const MOCK_METRICS = {
         frustrated: 14,
         angry: 4,
         sad: 2
+    },
+    // ===========================================
+    // SENTIMENT ANALYSIS METRICS
+    // ===========================================
+    sentiment: {
+        // Net Promoter Score (-100 to 100)
+        nps: {
+            score: 42,
+            promoters: 58,  // 9-10 rating
+            passives: 26,   // 7-8 rating  
+            detractors: 16, // 0-6 rating
+            trend: [
+                { date: '2026-01-13', value: 38 },
+                { date: '2026-01-14', value: 40 },
+                { date: '2026-01-15', value: 35 },
+                { date: '2026-01-16', value: 45 },
+                { date: '2026-01-17', value: 43 },
+                { date: '2026-01-18', value: 48 },
+                { date: '2026-01-19', value: 42 }
+            ]
+        },
+        // Customer Satisfaction Score (1-5)
+        csat: {
+            score: 4.6,
+            distribution: [
+                { rating: 5, count: 89, percentage: 57 },
+                { rating: 4, count: 42, percentage: 27 },
+                { rating: 3, count: 15, percentage: 10 },
+                { rating: 2, count: 6, percentage: 4 },
+                { rating: 1, count: 4, percentage: 2 }
+            ],
+            trend: [
+                { date: '2026-01-13', value: 4.5 },
+                { date: '2026-01-14', value: 4.6 },
+                { date: '2026-01-15', value: 4.4 },
+                { date: '2026-01-16', value: 4.7 },
+                { date: '2026-01-17', value: 4.6 },
+                { date: '2026-01-18', value: 4.8 },
+                { date: '2026-01-19', value: 4.6 }
+            ]
+        },
+        // Customer Effort Score (1-7, lower is better)
+        ces: {
+            score: 2.3,
+            effortLevels: [
+                { level: 'Muy Facil', count: 67, percentage: 43 },
+                { level: 'Facil', count: 52, percentage: 33 },
+                { level: 'Neutral', count: 22, percentage: 14 },
+                { level: 'Dificil', count: 12, percentage: 8 },
+                { level: 'Muy Dificil', count: 3, percentage: 2 }
+            ]
+        },
+        // Positive-to-Negative ratio
+        pta: {
+            ratio: 3.8,
+            positive: 76,
+            negative: 20,
+            neutral: 4
+        },
+        // Emotion Intensity Score (0-100)
+        emotionIntensity: {
+            average: 62,
+            byEmotion: {
+                happy: { intensity: 78, frequency: 38 },
+                neutral: { intensity: 45, frequency: 42 },
+                frustrated: { intensity: 72, frequency: 14 },
+                angry: { intensity: 85, frequency: 4 },
+                sad: { intensity: 58, frequency: 2 }
+            }
+        },
+        // Sentiment Rubrics
+        rubrics: {
+            vocal: {
+                tone: 72,       // Voice tone positivity (0-100)
+                pace: 65,       // Speaking pace appropriateness (0-100)
+                clarity: 88,    // Voice clarity (0-100)
+                energy: 70      // Energy level (0-100)
+            },
+            linguistic: {
+                politeness: 85,     // Polite language usage (0-100)
+                empathy: 78,        // Empathetic expressions (0-100)
+                professionalism: 92,// Professional vocabulary (0-100)
+                resolution: 80      // Solution-oriented language (0-100)
+            },
+            behavioral: {
+                patience: 75,       // Patience indicators (0-100)
+                engagement: 82,     // Active engagement (0-100)
+                frustrationTolerance: 68,  // Handling difficult moments (0-100)
+                rapport: 77         // Building rapport (0-100)
+            }
+        },
+        // First Call Resolution impact on sentiment
+        fcrImpact: {
+            resolved: { avgSentiment: 0.78, count: 139 },
+            escalated: { avgSentiment: -0.23, count: 17 }
+        }
     }
 };
 

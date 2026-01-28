@@ -84,7 +84,7 @@ function EmotionDistribution({ data }) {
                             }}
                             title={`${EMOTIONS[emotion]?.label}: ${value}%`}
                         >
-                            {value > 10 && <span style={{ fontSize: '0.75rem' }}>{EMOTIONS[emotion]?.icon}</span>}
+                            {value > 10 && <span style={{ fontSize: '0.75rem', color: '#fff' }}>{Math.round(value)}%</span>}
                         </div>
                     ))}
                 </div>
@@ -93,7 +93,13 @@ function EmotionDistribution({ data }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
                 {Object.entries(data).map(([emotion, value]) => (
                     <div key={emotion} style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.25rem' }}>{EMOTIONS[emotion]?.icon}</div>
+                        <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            background: colors[emotion],
+                            margin: '0 auto 0.25rem'
+                        }} />
                         <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{value}%</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                             {EMOTIONS[emotion]?.label}
@@ -134,7 +140,7 @@ function RecentCalls({ calls }) {
                         </div>
                         <div className="call-stats">
                             <span className={`badge emotion-${dominantEmotion[0]}`}>
-                                {EMOTIONS[dominantEmotion[0]]?.icon} {dominantEmotion[1]}%
+                                {dominantEmotion[1]}%
                             </span>
                             <span className={`badge badge-${call.resolution === 'resolved' ? 'success' : 'warning'}`}>
                                 {call.resolution === 'resolved' ? 'Resuelto' : 'Escalado'}

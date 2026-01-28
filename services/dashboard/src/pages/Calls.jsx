@@ -102,7 +102,7 @@ export default function Calls() {
                     >
                         <option value="">Emoción</option>
                         {Object.entries(EMOTIONS).map(([key, val]) => (
-                            <option key={key} value={key}>{val.icon} {val.label}</option>
+                            <option key={key} value={key}>{val.label}</option>
                         ))}
                     </select>
                 </div>
@@ -158,7 +158,7 @@ export default function Calls() {
                                         <td>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                 <span className="avatar" style={{ width: '24px', height: '24px', fontSize: '0.7rem' }}>
-                                                    {agent?.avatar || '🤖'}
+                                                    {agent?.avatar || 'AI'}
                                                 </span>
                                                 {agent?.name || 'AI'}
                                             </div>
@@ -170,12 +170,12 @@ export default function Calls() {
                                         </td>
                                         <td>
                                             <span className={`badge emotion-${dominantEmotion[0]}`}>
-                                                {EMOTIONS[dominantEmotion[0]]?.icon} {dominantEmotion[1]}%
+                                                {dominantEmotion[1]}%
                                             </span>
                                         </td>
                                         <td>
                                             <span className={`badge badge-${call.status === 'completed' ? 'success' :
-                                                    call.status === 'in-progress' ? 'info' : 'danger'
+                                                call.status === 'in-progress' ? 'info' : 'danger'
                                                 }`}>
                                                 {call.status === 'completed' ? 'Completada' :
                                                     call.status === 'in-progress' ? 'En curso' : 'Perdida'}

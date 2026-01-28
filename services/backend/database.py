@@ -57,13 +57,13 @@ class Message(Base):
 
 
 class CallLog(Base):
-    """Call log model for analytics"""
+    """Call log model for analytics with quality metrics"""
     __tablename__ = "call_logs"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     conversation_id = Column(String(36), ForeignKey("conversations.id"))
     event_type = Column(String(50))
-    details = Column(JSON, nullable=True)
+    details = Column(JSON, nullable=True)  # Stores metrics: stt_latency_ms, llm_latency_ms, tts_latency_ms, sentiment_score, etc.
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -193,3 +193,80 @@ class Database:
             )
             session.add(log)
             await session.commit()
+
+    async def get_conversation_metrics(self, conversation_id: str) -> Dict:
+        """Get aggregated metrics for a conversation"""
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(CallLog)
+                .where(CallLog.conversation_id == conversation_id)
+                .where(CallLog.event_type.in_(["turn_completed", "turn_completed_streaming"]))
+                .order_by(CallLog.created_at)
+            )
+            logs = result.scalars().all()
+
+            if not logs:
+                return {}
+
+            # Aggregate metrics
+            total_turns = len(logs)
+            stt_latencies = []
+            llm_latencies = []
+            tts_latencies = []
+            total_latencies = []
+            sentiment_scores = []
+            interruptions = 0
+
+            for log in logs:
+                details = log.details or {}
+                if "stt_latency_ms" in details:
+                    stt_latencies.append(details["stt_latency_ms"])
+                if "llm_latency_ms" in details:
+                    llm_latencies.append(details["llm_latency_ms"])
+                if "tts_latency_ms" in details:
+                    tts_latencies.append(details["tts_latency_ms"])
+                if "total_latency_ms" in details:
+                    total_latencies.append(details["total_latency_ms"])
+                if "sentiment_score" in details:
+                    sentiment_scores.append(details["sentiment_score"])
+
+            # Count interruptions
+            interruption_result = await session.execute(
+                select(CallLog)
+                .where(CallLog.conversation_id == conversation_id)
+                .where(CallLog.event_type == "interruption")
+            )
+            interruptions = len(interruption_result.scalars().all())
+
+            return {
+                "conversation_id": conversation_id,
+                "total_turns": total_turns,
+                "avg_stt_latency_ms": sum(stt_latencies) // len(stt_latencies) if stt_latencies else 0,
+                "avg_llm_latency_ms": sum(llm_latencies) // len(llm_latencies) if llm_latencies else 0,
+                "avg_tts_latency_ms": sum(tts_latencies) // len(tts_latencies) if tts_latencies else 0,
+                "avg_total_latency_ms": sum(total_latencies) // len(total_latencies) if total_latencies else 0,
+                "avg_sentiment_score": sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0,
+                "interruptions_count": interruptions
+            }
+
+    async def get_all_metrics(self, limit: int = 100) -> List[Dict]:
+        """Get metrics for all recent conversations"""
+        async with self.async_session() as session:
+            # Get recent conversations
+            result = await session.execute(
+                select(Conversation)
+                .order_by(Conversation.started_at.desc())
+                .limit(limit)
+            )
+            conversations = result.scalars().all()
+
+            metrics_list = []
+            for conv in conversations:
+                metrics = await self.get_conversation_metrics(conv.id)
+                if metrics:
+                    metrics["started_at"] = conv.started_at.isoformat() if conv.started_at else None
+                    metrics["ended_at"] = conv.ended_at.isoformat() if conv.ended_at else None
+                    metrics["status"] = conv.status
+                    metrics_list.append(metrics)
+
+            return metrics_list
