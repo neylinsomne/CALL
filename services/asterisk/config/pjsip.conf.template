@@ -176,3 +176,43 @@ password=softphone123
 [softphone2-aor]
 type=aor
 max_contacts=2
+
+; ===========================================
+; GATEWAY FXO/FXS (Líneas fijas analógicas)
+; Ejemplo: Grandstream GXW4104/4108
+; ===========================================
+
+; Gateway 1 - FXO (Líneas entrantes PSTN)
+[gateway-fxo-1]
+type=endpoint
+transport=transport-udp
+context=from-pstn-gateway
+disallow=all
+allow=ulaw
+allow=alaw
+aors=gateway-fxo-1-aor
+auth=gateway-fxo-1-auth
+direct_media=no
+force_rport=yes
+rewrite_contact=yes
+rtp_symmetric=yes
+callerid="PSTN Gateway" <9999>
+
+[gateway-fxo-1-auth]
+type=auth
+auth_type=userpass
+username=${GATEWAY_FXO_USER:-gateway}
+password=${GATEWAY_FXO_PASSWORD:-gateway123}
+
+[gateway-fxo-1-aor]
+type=aor
+contact=sip:${GATEWAY_FXO_IP:-192.168.1.100}:5060
+qualify_frequency=30
+
+[gateway-fxo-1-identify]
+type=identify
+endpoint=gateway-fxo-1
+match=${GATEWAY_FXO_IP:-192.168.1.100}
+
+; Si tienes múltiples gateways, añade más secciones similares:
+; [gateway-fxo-2], [gateway-fxo-2-auth], etc.

@@ -50,10 +50,28 @@ exten => _2XX,1,NoOp(Internal call to ${EXTEN})
  same => n,Dial(PJSIP/${EXTEN},30)
  same => n,Hangup()
 
-; === External calls via trunk ===
-exten => _9.,1,NoOp(External call to ${EXTEN:1})
+; === External calls via SIP trunk ===
+exten => _9.,1,NoOp(External call to ${EXTEN:1} via SIP Trunk)
  same => n,Set(CALLERID(num)=${OUTBOUND_CALLERID})
  same => n,Dial(PJSIP/${EXTEN:1}@trunk-endpoint,60)
+ same => n,Hangup()
+
+; === External calls via Gateway FXO ===
+exten => _8.,1,NoOp(External call to ${EXTEN:1} via Gateway FXO)
+ same => n,Set(CALLERID(num)=${OUTBOUND_CALLERID})
+ same => n,Dial(PJSIP/${EXTEN:1}@gateway-fxo-1,60)
+ same => n,Hangup()
+
+; === External calls via DAHDI ===
+exten => _7.,1,NoOp(External call to ${EXTEN:1} via DAHDI)
+ same => n,Set(CALLERID(num)=${OUTBOUND_CALLERID})
+ same => n,Dial(DAHDI/g0/${EXTEN:1},60)
+ same => n,Hangup()
+
+; === Smart routing: intenta DAHDI, luego Gateway, luego SIP ===
+exten => _6.,1,NoOp(External call to ${EXTEN:1} - Smart routing)
+ same => n,Set(CALLERID(num)=${OUTBOUND_CALLERID})
+ same => n,Dial(DAHDI/g0/${EXTEN:1}&PJSIP/${EXTEN:1}@gateway-fxo-1&PJSIP/${EXTEN:1}@trunk-endpoint,60)
  same => n,Hangup()
 
 ; === Emergency / Priority ===
@@ -80,8 +98,45 @@ exten => *43,1,Answer()
 ; ===========================================
 [from-trunk]
 ; Todas las llamadas entrantes van al AI
-exten => _X.,1,NoOp(Incoming external call from ${CALLERID(num)})
+exten => _X.,1,NoOp(Incoming SIP Trunk call from ${CALLERID(num)})
  same => n,Set(CDR(caller_id)=${CALLERID(num)})
+ same => n,Set(CDR(source)=sip_trunk)
+ same => n,Goto(call-center,100,1)
+
+; ===========================================
+; INCOMING FROM GATEWAY FXO (Líneas fijas via Gateway)
+; ===========================================
+[from-pstn-gateway]
+exten => _X.,1,NoOp(Incoming PSTN Gateway call from ${CALLERID(num)})
+ same => n,Set(CDR(caller_id)=${CALLERID(num)})
+ same => n,Set(CDR(source)=pstn_gateway)
+ same => n,Answer()
+ same => n,Wait(0.5)
+ same => n,Goto(call-center,100,1)
+
+; Si quieres enrutamiento específico por DID:
+; exten => 5551234,1,NoOp(Llamada a DID 5551234)
+;  same => n,Goto(call-center,100,1)
+; exten => 5555678,1,NoOp(Llamada a DID 5555678)
+;  same => n,Goto(call-center,200,1) ; Va directo a humano
+
+; ===========================================
+; INCOMING FROM DAHDI (Líneas fijas via tarjeta Digium)
+; ===========================================
+[from-pstn-dahdi]
+exten => _X.,1,NoOp(Incoming DAHDI call from ${CALLERID(num)} on channel ${CHANNEL})
+ same => n,Set(CDR(caller_id)=${CALLERID(num)})
+ same => n,Set(CDR(source)=pstn_dahdi)
+ same => n,Set(CDR(dahdi_channel)=${CHANNEL})
+ same => n,Answer()
+ same => n,Wait(0.5)
+ same => n,Goto(call-center,100,1)
+
+; Contexto catch-all para líneas DAHDI sin DID
+exten => s,1,NoOp(Incoming DAHDI call without DID)
+ same => n,Set(CDR(source)=pstn_dahdi_no_did)
+ same => n,Answer()
+ same => n,Wait(0.5)
  same => n,Goto(call-center,100,1)
 
 ; Si quieres IVR personalizado:

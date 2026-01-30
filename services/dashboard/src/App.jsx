@@ -13,6 +13,7 @@ import Analytics from './pages/Analytics';
 import SentimentAnalytics from './pages/SentimentAnalytics';
 import Vocabulary from './pages/Vocabulary';
 import KnowledgeBase from './pages/KnowledgeBase';
+import ConfigurationWizard from './pages/ConfigurationWizard';
 
 // Auth Context
 const AuthContext = createContext(null);
@@ -58,6 +59,7 @@ function App() {
                     <main className="main-content">
                         <Routes>
                             <Route path="/" element={<Dashboard />} />
+                            <Route path="/setup" element={<ConfigurationWizard />} />
                             <Route path="/calls" element={<Calls />} />
                             <Route path="/calls/:id" element={<CallDetail />} />
                             <Route path="/agents" element={<Agents />} />

@@ -26,6 +26,8 @@ from websocket_manager import ConnectionManager
 from outbound import router as outbound_router
 from vocabulary import router as vocabulary_router
 from webhooks import router as webhooks_router, trigger_webhook_event
+from config_manager import router as config_router, init_config_manager
+from adaptive_flow import initialize_adaptive_flow, get_current_flow
 
 # Configure loguru
 logger.add(
@@ -55,6 +57,14 @@ ENABLE_DENOISE = os.getenv("ENABLE_DENOISE", "true").lower() == "true"
 async def lifespan(app: FastAPI):
     # Startup
     await db.connect()
+    init_config_manager()  # Initialize configuration manager
+    logger.info("✅ Configuration manager initialized")
+
+    # Initialize adaptive flow
+    await initialize_adaptive_flow()
+    flow_info = get_current_flow().get_flow_info()
+    logger.info(f"🔄 Adaptive flow ready: {flow_info['flow_type']}")
+
     yield
     # Shutdown
     await db.disconnect()
@@ -82,6 +92,7 @@ app.add_middleware(
 app.include_router(outbound_router)
 app.include_router(vocabulary_router)
 app.include_router(webhooks_router)
+app.include_router(config_router)  # Configuration wizard endpoints
 
 try:
     from sentiment import router as sentiment_router
