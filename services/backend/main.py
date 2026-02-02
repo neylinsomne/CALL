@@ -8,7 +8,7 @@ import uuid
 import asyncio
 import json
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, List, Any
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -28,6 +28,12 @@ from vocabulary import router as vocabulary_router
 from webhooks import router as webhooks_router, trigger_webhook_event
 from config_manager import router as config_router, init_config_manager
 from adaptive_flow import initialize_adaptive_flow, get_current_flow
+from license_validator import get_license_validator
+from license_admin import router as license_admin_router
+from admin_api import router as admin_api_router
+from client_api import router as client_api_router
+from auth import expire_old_tokens
+from __version__ import __version__, __license_required__
 
 # Configure loguru
 logger.add(
@@ -60,13 +66,48 @@ async def lifespan(app: FastAPI):
     init_config_manager()  # Initialize configuration manager
     logger.info("✅ Configuration manager initialized")
 
+    # Initialize license validator (if required)
+    if __license_required__:
+        try:
+            license_validator = get_license_validator()
+            await license_validator.start()
+            logger.info("🔐 License validated successfully")
+            logger.info(f"   Client: {license_validator.license_info.get('client_name')}")
+            logger.info(f"   Max calls: {license_validator.max_concurrent_calls}")
+            logger.info(f"   Expires: {license_validator.license_info.get('expires_at')}")
+        except Exception as e:
+            logger.error(f"❌ License validation failed: {e}")
+            logger.error("   System will not accept calls without valid license")
+            # Don't exit - allow system to start but reject calls
+    else:
+        logger.warning("⚠️  License validation disabled (development mode)")
+
     # Initialize adaptive flow
     await initialize_adaptive_flow()
     flow_info = get_current_flow().get_flow_info()
     logger.info(f"🔄 Adaptive flow ready: {flow_info['flow_type']}")
 
+    # Start background token expiration task
+    async def _token_expiry_loop():
+        while True:
+            try:
+                await expire_old_tokens()
+            except Exception as e:
+                logger.error(f"Token expiration task error: {e}")
+            await asyncio.sleep(3600)  # Check every hour
+
+    token_task = asyncio.create_task(_token_expiry_loop())
+    logger.info("Token expiration scheduler started (every 1h)")
+
     yield
     # Shutdown
+    token_task.cancel()
+    if __license_required__:
+        try:
+            license_validator = get_license_validator()
+            await license_validator.stop()
+        except Exception:
+            pass
     await db.disconnect()
 
 
@@ -93,6 +134,9 @@ app.include_router(outbound_router)
 app.include_router(vocabulary_router)
 app.include_router(webhooks_router)
 app.include_router(config_router)  # Configuration wizard endpoints
+app.include_router(license_admin_router)  # License management endpoints (admin only)
+app.include_router(admin_api_router)  # Multi-tenant admin API (orgs, tokens, agents)
+app.include_router(client_api_router)  # Client API with scope-based permissions
 
 try:
     from sentiment import router as sentiment_router
@@ -147,6 +191,35 @@ except ImportError:
 # Target Speaker Extraction and Prosody Analysis (optional, improve quality)
 ENABLE_TARGET_EXTRACTION = os.getenv("ENABLE_TARGET_EXTRACTION", "false").lower() == "true"
 ENABLE_PROSODY_ANALYSIS = os.getenv("ENABLE_PROSODY_ANALYSIS", "true").lower() == "true"
+
+
+# ===========================================
+# License Validation Helper
+# ===========================================
+def check_license_call_limit() -> bool:
+    """
+    Verifica si se puede aceptar una nueva llamada según la licencia.
+
+    Returns:
+        True si se puede aceptar la llamada
+    """
+    if not __license_required__:
+        return True
+
+    try:
+        license_validator = get_license_validator()
+        if not license_validator.is_valid:
+            logger.error("License is not valid - rejecting call")
+            return False
+
+        if not license_validator.can_accept_call():
+            logger.warning(f"Call limit reached: {license_validator._active_calls}/{license_validator.max_concurrent_calls}")
+            return False
+
+        return True
+    except Exception as e:
+        logger.error(f"Error checking license: {e}")
+        return False
 
 target_extractor = None
 prosody_analyzer = None
@@ -305,8 +378,53 @@ class SynthesizeRequest(BaseModel):
 # ===========================================
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    """Health check endpoint with license status"""
+    health_data = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": __version__
+    }
+
+    if __license_required__:
+        try:
+            license_validator = get_license_validator()
+            health_data["license"] = {
+                "valid": license_validator.is_valid,
+                "active_calls": license_validator._active_calls,
+                "max_calls": license_validator.max_concurrent_calls,
+                "expires_at": license_validator.license_info.get("expires_at") if license_validator.license_info else None
+            }
+        except Exception as e:
+            health_data["license"] = {
+                "valid": False,
+                "error": str(e)
+            }
+
+    return health_data
+
+
+@app.get("/license/status")
+async def license_status():
+    """Get detailed license status"""
+    if not __license_required__:
+        return {"license_required": False, "mode": "development"}
+
+    try:
+        license_validator = get_license_validator()
+        return {
+            "license_required": True,
+            "valid": license_validator.is_valid,
+            "active_calls": license_validator._active_calls,
+            "max_concurrent_calls": license_validator.max_concurrent_calls,
+            "max_agents": license_validator.max_agents,
+            "license_info": license_validator.license_info,
+            "hardware_id": license_validator.hardware_id[:16] + "..." if license_validator.hardware_id else None
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting license status: {str(e)}"
+        )
 
 
 @app.post("/conversations", response_model=dict)
@@ -438,6 +556,18 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
     - Server analyzes prosody (questions, pauses, emotion)
     - Server responds with transcription and AI audio
     """
+    # Check license before accepting call
+    if not check_license_call_limit():
+        await websocket.close(code=1008, reason="License limit exceeded or invalid")
+        logger.error(f"[{conversation_id}] Call rejected - license limit exceeded")
+        return
+
+    # Increment active calls counter
+    if __license_required__:
+        license_validator = get_license_validator()
+        license_validator.increment_active_calls()
+        logger.info(f"Active calls: {license_validator._active_calls}/{license_validator.max_concurrent_calls}")
+
     await manager.connect(websocket, conversation_id)
 
     try:
@@ -558,6 +688,15 @@ async def websocket_endpoint(websocket: WebSocket, conversation_id: str):
 
     except WebSocketDisconnect:
         manager.disconnect(conversation_id)
+
+        # Decrement active calls counter
+        if __license_required__:
+            try:
+                license_validator = get_license_validator()
+                license_validator.decrement_active_calls()
+                logger.info(f"Call ended. Active calls: {license_validator._active_calls}/{license_validator.max_concurrent_calls}")
+            except Exception as e:
+                logger.error(f"Error decrementing call counter: {e}")
 
         # Clean up voice profile
         if conversation_id in conversation_voice_profiles:
@@ -1242,6 +1381,18 @@ async def audiosocket_handler(websocket: WebSocket, conversation_id: str):
     AudioSocket handler for Asterisk integration
     Handles raw audio from Asterisk and processes through AI pipeline
     """
+    # Check license before accepting call
+    if not check_license_call_limit():
+        await websocket.close(code=1008, reason="License limit exceeded or invalid")
+        logger.error(f"[Asterisk:{conversation_id}] Call rejected - license limit exceeded")
+        return
+
+    # Increment active calls counter
+    if __license_required__:
+        license_validator = get_license_validator()
+        license_validator.increment_active_calls()
+        logger.info(f"[Asterisk] Active calls: {license_validator._active_calls}/{license_validator.max_concurrent_calls}")
+
     await manager.connect(websocket, conversation_id)
     
     try:
@@ -1282,6 +1433,16 @@ async def audiosocket_handler(websocket: WebSocket, conversation_id: str):
                 
     except WebSocketDisconnect:
         manager.disconnect(conversation_id)
+
+        # Decrement active calls counter
+        if __license_required__:
+            try:
+                license_validator = get_license_validator()
+                license_validator.decrement_active_calls()
+                logger.info(f"[Asterisk] Call ended. Active calls: {license_validator._active_calls}/{license_validator.max_concurrent_calls}")
+            except Exception as e:
+                logger.error(f"Error decrementing call counter: {e}")
+
         await db.end_conversation(conversation_id)
 
 

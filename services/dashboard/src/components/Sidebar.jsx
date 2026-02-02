@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     Phone,
+    PhoneIncoming,
     Users,
     BarChart3,
     Settings,
@@ -32,6 +33,7 @@ const navItems = [
     {
         section: 'Herramientas',
         items: [
+            { path: '/telephony', icon: PhoneIncoming, label: 'Telefonía' },
             { path: '/vocabulary', icon: Mic, label: 'Vocabulario' },
             { path: '/knowledge', icon: BookOpen, label: 'Base Conocimiento' },
             { path: '/settings', icon: Settings, label: 'Configuración' },

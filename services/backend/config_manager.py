@@ -17,8 +17,9 @@ Endpoints:
 
 import os
 import json
+import socket
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
@@ -74,6 +75,9 @@ class STTConfig(BaseModel):
     model: str = "large-v3"
     device: str = "cuda"
     language: str = "es"
+    use_triton: bool = False
+    triton_model: str = "small"
+    triton_instance_count: int = 2
 
 
 class TTSConfig(BaseModel):
@@ -102,9 +106,18 @@ class VoiceTrainingConfig(BaseModel):
     targetSpeaker: str = ""
 
 
+class SecurityConfig(BaseModel):
+    enableTLS: bool = True
+    enableSRTP: bool = True
+    certificateType: str = "self-signed"  # "self-signed" | "letsencrypt" | "custom"
+    domain: str = ""
+    forceSecure: bool = True
+
+
 class CallCenterConfig(BaseModel):
     telephony: TelephonyConfig
     aiServices: AIServicesConfig = AIServicesConfig()
+    security: SecurityConfig = SecurityConfig()
     voiceTraining: VoiceTrainingConfig = VoiceTrainingConfig()
 
 
@@ -192,11 +205,27 @@ async def save_configuration(config: CallCenterConfig):
         else:
             await configure_pstn_hardware(config.telephony.hardware)
 
+        # Generar certificados SSL si TLS está habilitado
+        certs_generated = False
+        if config.security.enableTLS:
+            try:
+                cert_result = await generate_certificates(
+                    cert_type=config.security.certificateType,
+                    domain=config.security.domain or "asterisk.local"
+                )
+                certs_generated = cert_result.get("success", False)
+                logger.info(f"✅ Certificados generados: {cert_result.get('message')}")
+            except Exception as e:
+                logger.warning(f"⚠️  Error generando certificados (continuando): {e}")
+
         return {
             "success": True,
             "config_file": str(CONFIG_FILE),
             "env_updated": env_updated,
-            "message": "Configuración guardada correctamente"
+            "certificates_generated": certs_generated,
+            "message": "Configuración guardada correctamente" + (
+                " con certificados SSL generados" if certs_generated else ""
+            )
         }
 
     except Exception as e:
@@ -322,6 +351,108 @@ async def upload_voice_reference(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/api/config/generate-certificates")
+async def generate_certificates(
+    cert_type: str = "self-signed",
+    domain: str = None
+):
+    """
+    Genera certificados SSL para TLS/SRTP
+
+    Args:
+        cert_type: "self-signed" | "letsencrypt"
+        domain: Dominio (requerido para Let's Encrypt)
+
+    Returns:
+        {
+            "success": bool,
+            "type": str,
+            "cert_file": str,
+            "key_file": str,
+            "message": str
+        }
+    """
+    import subprocess
+
+    try:
+        cert_dir = Path("/etc/asterisk/keys")
+        cert_dir.mkdir(parents=True, exist_ok=True)
+
+        if cert_type == "self-signed":
+            logger.info("Generando certificados autofirmados...")
+
+            # Generar clave privada
+            subprocess.run([
+                "openssl", "genrsa",
+                "-out", str(cert_dir / "asterisk.key"),
+                "4096"
+            ], check=True, capture_output=True)
+
+            # Generar certificado autofirmado (válido 10 años)
+            subprocess.run([
+                "openssl", "req", "-new", "-x509",
+                "-days", "3650",
+                "-key", str(cert_dir / "asterisk.key"),
+                "-out", str(cert_dir / "asterisk.crt"),
+                "-subj", f"/C=US/ST=State/L=City/O=Call Center AI/CN={domain or 'asterisk.local'}"
+            ], check=True, capture_output=True)
+
+            # Generar CA
+            subprocess.run([
+                "openssl", "genrsa",
+                "-out", str(cert_dir / "ca.key"),
+                "4096"
+            ], check=True, capture_output=True)
+
+            subprocess.run([
+                "openssl", "req", "-new", "-x509",
+                "-days", "3650",
+                "-key", str(cert_dir / "ca.key"),
+                "-out", str(cert_dir / "ca.crt"),
+                "-subj", f"/C=US/ST=State/L=City/O=Call Center AI CA/CN=CA-{domain or 'asterisk.local'}"
+            ], check=True, capture_output=True)
+
+            # Permisos
+            os.chmod(cert_dir / "asterisk.key", 0o600)
+            os.chmod(cert_dir / "ca.key", 0o600)
+            os.chmod(cert_dir / "asterisk.crt", 0o644)
+            os.chmod(cert_dir / "ca.crt", 0o644)
+
+            logger.info("✅ Certificados autofirmados generados")
+
+            return {
+                "success": True,
+                "type": "self-signed",
+                "cert_file": str(cert_dir / "asterisk.crt"),
+                "key_file": str(cert_dir / "asterisk.key"),
+                "ca_file": str(cert_dir / "ca.crt"),
+                "message": "Certificados autofirmados generados correctamente (válidos 10 años)"
+            }
+
+        elif cert_type == "letsencrypt":
+            if not domain:
+                raise HTTPException(400, "Domain is required for Let's Encrypt")
+
+            logger.warning("Let's Encrypt requiere configuración manual")
+
+            return {
+                "success": False,
+                "type": "letsencrypt",
+                "message": "Let's Encrypt requiere que el dominio apunte a este servidor y que el puerto 80 esté abierto. Configúralo manualmente con certbot."
+            }
+
+        else:
+            raise HTTPException(400, f"Invalid certificate type: {cert_type}")
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error generando certificados: {e.stderr}")
+        raise HTTPException(500, f"Error al ejecutar openssl: {e.stderr.decode() if e.stderr else str(e)}")
+
+    except Exception as e:
+        logger.error(f"Error generando certificados: {e}")
+        raise HTTPException(500, str(e))
+
+
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
@@ -369,6 +500,9 @@ async def update_env_file(config: CallCenterConfig) -> bool:
         env_vars['STT_MODEL'] = config.aiServices.stt.model
         env_vars['STT_DEVICE'] = config.aiServices.stt.device
         env_vars['STT_LANGUAGE'] = config.aiServices.stt.language
+        env_vars['USE_TRITON'] = str(config.aiServices.stt.use_triton).lower()
+        if config.aiServices.stt.use_triton:
+            env_vars['TRITON_STT_MODEL'] = config.aiServices.stt.triton_model
 
         env_vars['TTS_MODEL'] = config.aiServices.tts.model
         env_vars['TTS_DEVICE'] = config.aiServices.tts.device
@@ -453,10 +587,243 @@ async def configure_pstn_hardware(hardware_config: HardwareConfig):
 
 
 # ============================================
+# TELEPHONY RECEPTION MODELS
+# ============================================
+
+class DIDNumber(BaseModel):
+    number: str = ""
+    label: str = ""
+    active: bool = True
+
+
+class FXOGatewayConfig(BaseModel):
+    ip: str = ""
+    sip_port: int = 5060
+    user: str = "gateway"
+    password: str = ""
+    fxo_ports: int = 4
+    codec: str = "ulaw"
+    dids: List[DIDNumber] = []
+
+
+class CarrierGradeConfig(BaseModel):
+    host: str = ""
+    user: str = ""
+    password: str = ""
+    outbound_caller_id: str = ""
+    auth_type: str = "register"
+    dids: List[DIDNumber] = []
+
+
+class TelephonyReceptionConfig(BaseModel):
+    method: str = ""  # "fxo_gateway" | "carrier_grade"
+    fxo_gateway: Optional[FXOGatewayConfig] = FXOGatewayConfig()
+    carrier_grade: Optional[CarrierGradeConfig] = CarrierGradeConfig()
+
+
+TELEPHONY_CONFIG_FILE = CONFIG_DIR / "telephony_config.json"
+
+
+# ============================================
+# TELEPHONY RECEPTION ENDPOINTS
+# ============================================
+
+@router.post("/api/config/telephony/save")
+async def save_telephony_config(config: TelephonyReceptionConfig):
+    """
+    Guarda la configuración de recepción de telefonía.
+    Soporta Gateway FXO y Carrier Grade / SIP Trunk.
+    """
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+        config_dict = config.dict()
+        async with aiofiles.open(TELEPHONY_CONFIG_FILE, 'w') as f:
+            await f.write(json.dumps(config_dict, indent=2))
+
+        # Actualizar .env con las variables correspondientes
+        await _update_telephony_env(config)
+
+        # Generar configuración de Asterisk según el método
+        await _apply_telephony_config(config)
+
+        logger.info(f"Configuración de telefonía guardada: {config.method}")
+
+        return {
+            "success": True,
+            "method": config.method,
+            "config_file": str(TELEPHONY_CONFIG_FILE),
+            "message": f"Configuración de {config.method} guardada correctamente"
+        }
+
+    except Exception as e:
+        logger.error(f"Error guardando configuración de telefonía: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/config/telephony")
+async def get_telephony_config():
+    """
+    Obtiene la configuración de recepción de telefonía actual.
+    """
+    try:
+        if TELEPHONY_CONFIG_FILE.exists():
+            async with aiofiles.open(TELEPHONY_CONFIG_FILE, 'r') as f:
+                content = await f.read()
+                return json.loads(content)
+        else:
+            return TelephonyReceptionConfig().dict()
+
+    except Exception as e:
+        logger.error(f"Error leyendo configuración de telefonía: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/config/telephony/test")
+async def test_telephony_connection(config: TelephonyReceptionConfig):
+    """
+    Prueba la conectividad SIP hacia el gateway o trunk.
+    Hace un intento de conexión TCP al puerto SIP del destino.
+    """
+    try:
+        if config.method == "fxo_gateway":
+            target_ip = config.fxo_gateway.ip
+            target_port = config.fxo_gateway.sip_port
+            label = f"Gateway FXO ({target_ip}:{target_port})"
+        elif config.method == "carrier_grade":
+            target_ip = config.carrier_grade.host
+            target_port = 5060
+            label = f"Carrier Grade ({target_ip}:{target_port})"
+        else:
+            raise HTTPException(400, "Método de telefonía no especificado")
+
+        if not target_ip:
+            raise HTTPException(400, "IP/Host del destino no configurado")
+
+        # Test de conectividad TCP al puerto SIP
+        reachable = False
+        error_msg = ""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((target_ip, target_port))
+            reachable = result == 0
+            if not reachable:
+                error_msg = f"No se pudo conectar al puerto {target_port}"
+            sock.close()
+        except socket.gaierror:
+            error_msg = f"No se pudo resolver el host: {target_ip}"
+        except socket.timeout:
+            error_msg = "Timeout al conectar (5s)"
+        except Exception as e:
+            error_msg = str(e)
+
+        return {
+            "reachable": reachable,
+            "target": label,
+            "ip": target_ip,
+            "port": target_port,
+            "error": error_msg if not reachable else None,
+            "message": f"Conexión exitosa a {label}" if reachable else f"Fallo: {error_msg}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error probando conectividad: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _update_telephony_env(config: TelephonyReceptionConfig) -> bool:
+    """Actualiza .env con variables de telefonía de recepción."""
+    try:
+        env_vars = {}
+        if ENV_FILE.exists():
+            async with aiofiles.open(ENV_FILE, 'r') as f:
+                content = await f.read()
+                for line in content.split('\n'):
+                    if '=' in line and not line.startswith('#'):
+                        key, value = line.split('=', 1)
+                        env_vars[key.strip()] = value.strip()
+
+        if config.method == "fxo_gateway" and config.fxo_gateway:
+            env_vars['GATEWAY_FXO_IP'] = config.fxo_gateway.ip
+            env_vars['GATEWAY_FXO_USER'] = config.fxo_gateway.user
+            env_vars['GATEWAY_FXO_PASSWORD'] = config.fxo_gateway.password
+            env_vars['GATEWAY_FXO_PORT'] = str(config.fxo_gateway.sip_port)
+            env_vars['GATEWAY_FXO_CODEC'] = config.fxo_gateway.codec
+            env_vars['GATEWAY_FXO_PORTS'] = str(config.fxo_gateway.fxo_ports)
+            env_vars['TELEPHONY_METHOD'] = 'fxo_gateway'
+
+        elif config.method == "carrier_grade" and config.carrier_grade:
+            env_vars['SIP_TRUNK_HOST'] = config.carrier_grade.host
+            env_vars['SIP_TRUNK_USER'] = config.carrier_grade.user
+            env_vars['SIP_TRUNK_PASSWORD'] = config.carrier_grade.password
+            if config.carrier_grade.outbound_caller_id:
+                env_vars['OUTBOUND_CALLERID'] = config.carrier_grade.outbound_caller_id
+            env_vars['SIP_AUTH_TYPE'] = config.carrier_grade.auth_type
+            env_vars['TELEPHONY_METHOD'] = 'carrier_grade'
+
+        lines = [f"{key}={value}" for key, value in env_vars.items()]
+        async with aiofiles.open(ENV_FILE, 'w') as f:
+            await f.write('\n'.join(lines))
+
+        return True
+    except Exception as e:
+        logger.error(f"Error actualizando .env para telefonía: {e}")
+        return False
+
+
+async def _apply_telephony_config(config: TelephonyReceptionConfig):
+    """Aplica la configuración de telefonía a los templates de Asterisk."""
+    try:
+        template_path = Path("/etc/asterisk/custom/pjsip.conf.template")
+        if not template_path.exists():
+            template_path = Path("./services/asterisk/config/pjsip.conf.template")
+
+        if not template_path.exists():
+            logger.warning("No se encontró template pjsip.conf.template")
+            return
+
+        async with aiofiles.open(template_path, 'r') as f:
+            template = await f.read()
+
+        if config.method == "fxo_gateway" and config.fxo_gateway:
+            gw = config.fxo_gateway
+            content = template.replace("${GATEWAY_FXO_IP:-192.168.1.100}", gw.ip)
+            content = content.replace("${GATEWAY_FXO_IP}", gw.ip)
+            content = content.replace("${GATEWAY_FXO_USER:-gateway}", gw.user)
+            content = content.replace("${GATEWAY_FXO_USER}", gw.user)
+            content = content.replace("${GATEWAY_FXO_PASSWORD:-gateway123}", gw.password)
+            content = content.replace("${GATEWAY_FXO_PASSWORD}", gw.password)
+
+        elif config.method == "carrier_grade" and config.carrier_grade:
+            cg = config.carrier_grade
+            content = template.replace("${SIP_TRUNK_HOST}", cg.host)
+            content = content.replace("${SIP_TRUNK_USER}", cg.user)
+            content = content.replace("${SIP_TRUNK_PASSWORD}", cg.password)
+
+        else:
+            return
+
+        output_path = Path("/etc/asterisk/pjsip_custom.conf")
+        if not output_path.parent.exists():
+            output_path = Path("./services/asterisk/config/pjsip_custom.conf")
+
+        async with aiofiles.open(output_path, 'w') as f:
+            await f.write(content)
+
+        logger.info(f"Configuración de Asterisk aplicada para {config.method}")
+
+    except Exception as e:
+        logger.error(f"Error aplicando configuración de telefonía: {e}")
+
+
+# ============================================
 # INICIALIZACIÓN
 # ============================================
 
 def init_config_manager():
     """Inicializa el gestor de configuración"""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info(f"📁 Config directory: {CONFIG_DIR}")
+    logger.info(f"Config directory: {CONFIG_DIR}")

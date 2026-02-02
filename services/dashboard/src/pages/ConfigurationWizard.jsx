@@ -11,7 +11,8 @@ import {
   AlertCircle,
   Loader,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  ExternalLink
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -74,6 +75,15 @@ const ConfigurationWizard = () => {
         model: 'local-model',
         provider: 'lm-studio' // "lm-studio" | "openai" | "anthropic"
       }
+    },
+
+    // Paso 2.5: Seguridad (Cifrado)
+    security: {
+      enableTLS: true,
+      enableSRTP: true,
+      certificateType: 'self-signed', // "self-signed" | "letsencrypt" | "custom"
+      domain: '',
+      forceSecure: true // Rechazar llamadas sin cifrado
     },
 
     // Paso 3: Entrenamiento de voz
@@ -345,6 +355,25 @@ const ConfigurationWizard = () => {
           </div>
         </div>
       )}
+
+      {/* Link a configuración avanzada de telefonía */}
+      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-blue-900">Configuración Avanzada de Telefonía</p>
+            <p className="text-xs text-blue-700 mt-1">
+              Gateway FXO, Carrier Grade, DIDs, pruebas de conectividad y más
+            </p>
+          </div>
+          <a
+            href="/telephony"
+            className="flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+          >
+            Abrir
+            <ExternalLink className="h-3 w-3 ml-1.5" />
+          </a>
+        </div>
+      </div>
 
       {/* Resultado de detección de hardware (si seleccionó No) */}
       {config.telephony.useSipTrunk === false && (
@@ -628,6 +657,138 @@ const ConfigurationWizard = () => {
           </div>
         )}
       </div>
+
+      {/* Seguridad y Cifrado */}
+      <div className="p-4 border-2 border-yellow-400 rounded-lg bg-yellow-50">
+        <div className="flex items-center mb-4">
+          <div className="flex items-center flex-1">
+            <svg className="h-6 w-6 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <h3 className="font-medium text-gray-900">🔒 Seguridad y Cifrado</h3>
+          </div>
+          <span className="px-3 py-1 bg-yellow-200 text-yellow-800 text-xs font-semibold rounded-full">
+            RECOMENDADO
+          </span>
+        </div>
+
+        <div className="mb-4 p-3 bg-white rounded-md">
+          <p className="text-sm text-gray-700 mb-2">
+            <strong>⚠️ Sin cifrado:</strong> Cualquiera puede interceptar tus llamadas por internet.
+          </p>
+          <p className="text-sm text-green-700">
+            <strong>✅ Con TLS+SRTP:</strong> Tráfico cifrado (como HTTPS). Imposible de interceptar.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <label className="flex items-start cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.security.enableTLS}
+              onChange={(e) => setConfig(prev => ({
+                ...prev,
+                security: { ...prev.security, enableTLS: e.target.checked }
+              }))}
+              className="mt-1 mr-3"
+            />
+            <div className="flex-1">
+              <span className="font-medium text-gray-900">Habilitar TLS/SIPS</span>
+              <p className="text-xs text-gray-600 mt-1">
+                Cifra la señalización SIP (quién llama, passwords, etc.). Puerto 5061.
+              </p>
+            </div>
+          </label>
+
+          <label className="flex items-start cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.security.enableSRTP}
+              onChange={(e) => setConfig(prev => ({
+                ...prev,
+                security: { ...prev.security, enableSRTP: e.target.checked }
+              }))}
+              className="mt-1 mr-3"
+            />
+            <div className="flex-1">
+              <span className="font-medium text-gray-900">Habilitar SRTP</span>
+              <p className="text-xs text-gray-600 mt-1">
+                Cifra el audio de las conversaciones con AES-128. Requiere TLS.
+              </p>
+            </div>
+          </label>
+
+          {config.security.enableTLS && (
+            <div className="ml-6 mt-3 space-y-3 p-3 bg-white rounded-md">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Certificado SSL
+                </label>
+                <select
+                  value={config.security.certificateType}
+                  onChange={(e) => setConfig(prev => ({
+                    ...prev,
+                    security: { ...prev.security, certificateType: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="self-signed">Autofirmado (desarrollo/testing)</option>
+                  <option value="letsencrypt">Let's Encrypt (producción - gratis)</option>
+                  <option value="custom">Personalizado (sube tus propios certificados)</option>
+                </select>
+              </div>
+
+              {config.security.certificateType === 'letsencrypt' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Dominio Público
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="asterisk.tudominio.com"
+                    value={config.security.domain}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      security: { ...prev.security, domain: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Requiere que el dominio apunte a este servidor
+                  </p>
+                </div>
+              )}
+
+              <label className="flex items-start cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.security.forceSecure}
+                  onChange={(e) => setConfig(prev => ({
+                    ...prev,
+                    security: { ...prev.security, forceSecure: e.target.checked }
+                  }))}
+                  className="mt-1 mr-2"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-gray-900">Forzar cifrado</span>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Rechazar llamadas que no usen TLS+SRTP (más seguro)
+                  </p>
+                </div>
+              </label>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 p-3 bg-blue-50 rounded-md">
+          <p className="text-xs text-blue-800">
+            💡 <strong>Nota:</strong> Los certificados se generarán automáticamente al guardar.
+            {config.security.enableTLS && config.security.enableSRTP
+              ? ' Tu configuración es segura ✅'
+              : ' Se recomienda habilitar ambos para máxima seguridad ⚠️'}
+          </p>
+        </div>
+      </div>
     </div>
   );
 
@@ -771,6 +932,61 @@ const ConfigurationWizard = () => {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Resumen de Seguridad */}
+      <div className={`p-4 rounded-lg ${
+        config.security.enableTLS && config.security.enableSRTP
+          ? 'bg-green-50 border border-green-200'
+          : 'bg-yellow-50 border border-yellow-200'
+      }`}>
+        <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          Seguridad
+        </h3>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-600">TLS/SIPS (Señalización):</span>
+            <span className={`font-medium ${config.security.enableTLS ? 'text-green-600' : 'text-red-600'}`}>
+              {config.security.enableTLS ? '✓ Habilitado (Puerto 5061)' : '✗ Deshabilitado'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">SRTP (Audio cifrado):</span>
+            <span className={`font-medium ${config.security.enableSRTP ? 'text-green-600' : 'text-red-600'}`}>
+              {config.security.enableSRTP ? '✓ Habilitado (AES-128)' : '✗ Deshabilitado'}
+            </span>
+          </div>
+          {config.security.enableTLS && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Certificado:</span>
+                <span className="font-medium">
+                  {config.security.certificateType === 'self-signed' && 'Autofirmado'}
+                  {config.security.certificateType === 'letsencrypt' && 'Let\'s Encrypt'}
+                  {config.security.certificateType === 'custom' && 'Personalizado'}
+                </span>
+              </div>
+              {config.security.certificateType === 'letsencrypt' && config.security.domain && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Dominio:</span>
+                  <span className="font-medium">{config.security.domain}</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        {config.security.enableTLS && config.security.enableSRTP ? (
+          <div className="mt-3 p-2 bg-green-100 rounded text-xs text-green-800">
+            ✅ Configuración segura - Llamadas completamente cifradas
+          </div>
+        ) : (
+          <div className="mt-3 p-2 bg-yellow-100 rounded text-xs text-yellow-800">
+            ⚠️ Sin cifrado completo - Las llamadas pueden ser interceptadas
+          </div>
+        )}
       </div>
 
       {/* Resumen de Voice Training */}

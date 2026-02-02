@@ -8,6 +8,16 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3.11-venv \
     ffmpeg \
+    pkg-config \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libswresample-dev \
+    libavfilter-dev \
+    gcc \
+    python3.11-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN ln -sf /usr/bin/python3.11 /usr/bin/python

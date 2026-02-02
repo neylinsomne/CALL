@@ -1,0 +1,39 @@
+name: "whisper_stt"
+backend: "python"
+max_batch_size: 0
+
+input [
+  {
+    name: "audio_bytes"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+  },
+  {
+    name: "language"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+    optional: true
+  },
+  {
+    name: "word_timestamps"
+    data_type: TYPE_BOOL
+    dims: [ 1 ]
+    optional: true
+  }
+]
+
+output [
+  {
+    name: "result_json"
+    data_type: TYPE_STRING
+    dims: [ 1 ]
+  }
+]
+
+instance_group [
+  {
+    count: 2
+    kind: KIND_GPU
+    gpus: [ 0 ]
+  }
+]
