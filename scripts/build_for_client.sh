@@ -268,6 +268,8 @@ Este paquete contiene todo lo necesario para instalar Call Center AI en tu infra
 - **docker-compose.yml**: Configuración de servicios
 - **asterisk/**: Configuración de Asterisk
 - **dashboard/**: Frontend web
+- **API_REFERENCE.md**: Documentación de la API para integraciones
+- **TERMINOS_USO_API.md**: Términos y condiciones de uso de la API
 
 ## Requisitos del Sistema
 
@@ -390,7 +392,194 @@ La redistribución no autorizada está prohibida.
 **Build Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 README
 
-echo -e "${GREEN}✅ Documentación generada${NC}"
+echo -e "${GREEN}✅ README generado${NC}"
+
+# Generar documentación de API y cláusulas
+echo -e "\n${YELLOW}8b. Generando documentación de API y cláusulas...${NC}"
+
+cat > "${OUTPUT_DIR}/API_REFERENCE.md" <<'APIREF'
+# Call Center AI - Referencia de API para Clientes
+
+## Autenticación
+
+Todos los endpoints de la API requieren un token de acceso en el header HTTP:
+
+```
+Authorization: Bearer cc_XXXXXXXX_YYYYYYYYYYYYYYYYYYYYYY
+```
+
+El token es proporcionado por Call Center AI al momento de la activación del servicio.
+
+---
+
+## Endpoints Disponibles
+
+### Información de la Cuenta
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/v1/me` | Información de su organización |
+
+### Agentes
+
+| Método | Endpoint | Scope requerido | Descripción |
+|--------|----------|-----------------|-------------|
+| GET | `/api/v1/agents` | `agent:read` | Listar sus agentes |
+| GET | `/api/v1/agents/{id}` | `agent:read` | Detalle de un agente |
+| PUT | `/api/v1/agents/{id}/config` | `agent:write` | Configurar agente |
+
+### Historial de Llamadas
+
+| Método | Endpoint | Scope requerido | Descripción |
+|--------|----------|-----------------|-------------|
+| GET | `/api/v1/calls` | `calls:read` | Listar llamadas |
+| GET | `/api/v1/calls/{id}` | `calls:read` | Detalle con mensajes |
+| GET | `/api/v1/calls/metrics/summary` | `calls:read` | Métricas agregadas |
+
+### Calidad (QA)
+
+| Método | Endpoint | Scope requerido | Descripción |
+|--------|----------|-----------------|-------------|
+| GET | `/api/v1/qa/evaluations` | `qa:read` | Listar evaluaciones |
+| GET | `/api/v1/qa/evaluations/{id}` | `qa:read` | Detalle con scores |
+| POST | `/api/v1/qa/evaluations` | `qa:write` | Crear evaluación manual |
+| GET | `/api/v1/qa/criteria` | `qa:read` | Criterios disponibles |
+
+---
+
+## Códigos de Respuesta
+
+| Código | Significado |
+|--------|-------------|
+| 200 | Operación exitosa |
+| 401 | Token inválido, expirado o ausente |
+| 403 | Permisos insuficientes para esta operación |
+| 404 | Recurso no encontrado |
+| 429 | Demasiadas solicitudes (rate limit) |
+| 500 | Error interno del servidor |
+
+---
+
+## Token de API
+
+### Formato
+
+```
+cc_XXXXXXXX_YYYYYYYYYYYYYYYYYYYYYY
+```
+
+### Vigencia
+
+- Los tokens tienen una vigencia de **90 días**
+- Al expirar, el token deja de funcionar automáticamente
+- Debe contactar a Call Center AI para obtener un nuevo token
+- El token anterior queda permanentemente invalidado
+
+### Recomendaciones
+
+1. Almacene el token en variables de entorno, nunca en código fuente
+2. No comparta el token entre aplicaciones distintas
+3. Notifique inmediatamente si sospecha que el token fue comprometido
+4. Solicite renovación al menos 1 semana antes del vencimiento
+
+APIREF
+
+cat > "${OUTPUT_DIR}/TERMINOS_USO_API.md" <<'TERMS'
+# Términos y Condiciones de Uso de la API
+
+## 1. Definiciones
+
+- **"Servicio"**: La plataforma Call Center AI y todos sus componentes
+- **"Cliente"**: La organización que contrata el servicio
+- **"Token de API"**: Credencial de acceso proporcionada al Cliente
+- **"Datos"**: Toda información procesada a través del Servicio
+
+## 2. Acceso y Autenticación
+
+2.1. El acceso a la API se realiza exclusivamente mediante tokens de autenticación emitidos por Call Center AI.
+
+2.2. Cada token está asociado a una única organización y tiene permisos (scopes) específicos según el plan contratado.
+
+2.3. Los tokens tienen una vigencia de 90 días calendario. La renovación requiere contacto directo con Call Center AI.
+
+2.4. El Cliente es responsable de la custodia y confidencialidad del token de API. Cualquier operación realizada con el token se atribuye al Cliente.
+
+## 3. Aislamiento de Datos
+
+3.1. Cada organización opera en un entorno aislado. Los datos de una organización no son accesibles por ninguna otra organización.
+
+3.2. Las consultas a la API están automáticamente filtradas por organización. No es posible acceder a datos de otras organizaciones.
+
+## 4. Límites del Servicio
+
+4.1. Los límites de uso están determinados por el plan contratado:
+
+| Recurso | Basic | Professional | Enterprise |
+|---------|-------|-------------|------------|
+| Agentes simultáneos | 5 | 20 | Según contrato |
+| Rate limit (req/min) | 60 | 300 | 1,000 |
+
+4.2. Exceder los límites de rate limiting resultará en respuestas HTTP 429.
+
+4.3. Intentar registrar agentes por encima del límite del plan resultará en error HTTP 403.
+
+## 5. Uso Aceptable
+
+5.1. La API debe ser utilizada exclusivamente para la integración con los sistemas propios del Cliente.
+
+5.2. Queda prohibido:
+  - Redistribuir el acceso a la API a terceros
+  - Realizar scraping masivo o automatizado fuera de los usos normales
+  - Intentar eludir los límites de rate limiting
+  - Intentar acceder a datos de otras organizaciones
+  - Compartir tokens de API con terceros no autorizados
+
+## 6. Disponibilidad
+
+6.1. Call Center AI se compromete a mantener una disponibilidad según el SLA del plan contratado.
+
+6.2. Los mantenimientos programados se notificarán con un mínimo de 48 horas de anticipación.
+
+6.3. En caso de mantenimiento de emergencia, se notificará lo antes posible.
+
+## 7. Suspensión y Terminación
+
+7.1. Call Center AI se reserva el derecho de suspender o revocar tokens de API en los siguientes casos:
+  - Impago del servicio
+  - Violación de estos términos de uso
+  - Actividad sospechosa o abusiva detectada
+  - Solicitud expresa del Cliente
+
+7.2. La suspensión de tokens es efectiva de forma inmediata.
+
+7.3. Los datos del Cliente se conservarán por un período de 30 días tras la terminación del servicio.
+
+## 8. Confidencialidad
+
+8.1. El token de API tiene carácter confidencial. El Cliente debe tratarlo con el mismo nivel de seguridad que una contraseña.
+
+8.2. En caso de compromiso o sospecha de compromiso del token, el Cliente debe notificar inmediatamente a Call Center AI para su revocación.
+
+## 9. Limitación de Responsabilidad
+
+9.1. Call Center AI no se responsabiliza por el uso indebido del token de API por parte del Cliente o terceros que hayan obtenido acceso al mismo.
+
+9.2. El Cliente es responsable de implementar las medidas de seguridad adecuadas en sus sistemas para proteger el token.
+
+## 10. Modificaciones
+
+10.1. Call Center AI puede modificar estos términos con previo aviso de 30 días.
+
+10.2. Los cambios en los endpoints de la API se comunicarán con un mínimo de 15 días de anticipación.
+
+---
+
+**Versión**: 1.0
+**Fecha de emisión**: $(date -u +"%Y-%m-%d")
+**Válido para el contrato de**: ${CLIENT_NAME}
+TERMS
+
+echo -e "${GREEN}✅ Documentación de API y cláusulas generadas${NC}"
 
 # Crear checksum
 echo -e "\n${YELLOW}9. Generando checksums...${NC}"

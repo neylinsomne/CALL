@@ -8,7 +8,7 @@ These endpoints are for OUR internal use only (not exposed to clients).
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException, status, Depends, Query
@@ -210,7 +210,7 @@ async def update_organization(org_id: str, data: OrgUpdateRequest):
         if data.settings is not None:
             org.settings = data.settings
 
-        org.updated_at = datetime.utcnow()
+        org.updated_at = datetime.now(timezone.utc)
         logger.info(f"Organization updated: {org.name} ({org.id})")
         return _org_to_response(org)
 
@@ -221,7 +221,7 @@ async def delete_organization(org_id: str):
     async with get_local_session() as session:
         org = await _get_org_or_404(session, org_id)
         org.is_active = False
-        org.updated_at = datetime.utcnow()
+        org.updated_at = datetime.now(timezone.utc)
 
         # Deactivate all tokens for this org
         tokens_result = await session.execute(
@@ -260,7 +260,7 @@ async def create_token(data: TokenCreateRequest):
             token_prefix=token_data["token_prefix"],
             name=data.name,
             scope=data.scope,
-            expires_at=datetime.utcnow() + timedelta(days=expiry_days),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=expiry_days),
         )
         session.add(token_record)
         await session.flush()
@@ -321,7 +321,7 @@ async def rotate_token(token_id: str):
             token_prefix=token_data["token_prefix"],
             name=old_token.name,
             scope=old_token.scope,
-            expires_at=datetime.utcnow() + timedelta(days=TOKEN_EXPIRY_DAYS),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS),
         )
         session.add(new_token)
         await session.flush()
@@ -447,7 +447,7 @@ async def update_agent(agent_id: str, data: AgentUpdateRequest):
         if data.config is not None:
             agent.config = data.config
 
-        agent.updated_at = datetime.utcnow()
+        agent.updated_at = datetime.now(timezone.utc)
         logger.info(f"Agent updated: {agent.name} ({agent.id})")
         return _agent_to_response(agent)
 
@@ -494,7 +494,7 @@ async def get_admin_stats():
             "organizations": {"total": org_count, "active": active_org_count},
             "tokens": {"total": token_count, "active": active_token_count},
             "agents": {"total": agent_count, "online": active_agent_count},
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
 

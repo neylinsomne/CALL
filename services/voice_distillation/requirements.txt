@@ -1,0 +1,11 @@
+torch>=2.0
+torchaudio
+kokoro>=0.9.4
+resemblyzer>=0.1.4
+librosa>=0.10
+numpy
+scipy
+soundfile>=0.13
+httpx
+tqdm
+loguru

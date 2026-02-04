@@ -1,6 +1,12 @@
 """
-Spanish F5-TTS Service
-Text-to-Speech synthesis using F5 model fine-tuned for Spanish
+Spanish TTS Service
+Text-to-Speech synthesis supporting F5-TTS and Kokoro backends.
+
+Backends:
+  - f5:     F5-TTS (high quality, zero-shot cloning, heavier)
+  - kokoro: Kokoro-82M (lightweight, 210x realtime, evolved voice tensors)
+
+Set TTS_BACKEND=kokoro and KOKORO_VOICE_PATH to use evolved voices.
 """
 
 import os
@@ -28,12 +34,32 @@ logger.add(
     level="INFO"
 )
 
-# F5-TTS imports (installed via git+https://github.com/jpgallegoar/Spanish-F5)
-try:
-    from f5_tts.api import F5TTS
-except ImportError:
-    from f5_tts.infer.utils_infer import load_model, infer_process
-    F5TTS = None
+# ===========================================
+# Backend Selection
+# ===========================================
+TTS_BACKEND = os.getenv("TTS_BACKEND", "f5")  # "f5" | "kokoro"
+KOKORO_VOICE_PATH = os.getenv("KOKORO_VOICE_PATH", "")
+KOKORO_VOICE_STYLE = os.getenv("KOKORO_VOICE_STYLE", "ef_dora")
+KOKORO_LANG = os.getenv("KOKORO_LANG", "e")  # "e" = Spanish
+
+# F5-TTS imports
+F5TTS = None
+if TTS_BACKEND == "f5":
+    try:
+        from f5_tts.api import F5TTS
+    except ImportError:
+        try:
+            from f5_tts.infer.utils_infer import load_model, infer_process
+        except ImportError:
+            logger.warning("F5-TTS not installed, only Kokoro backend available")
+
+# Kokoro imports
+KPipeline = None
+if TTS_BACKEND == "kokoro":
+    try:
+        from kokoro import KPipeline
+    except ImportError:
+        logger.error("Kokoro not installed. Install with: pip install kokoro>=0.9.4")
 
 
 # ===========================================
@@ -93,9 +119,9 @@ synthesis_cache = LRUCache(max_size=CACHE_MAX_SIZE)
 # App Initialization
 # ===========================================
 app = FastAPI(
-    title="Spanish F5-TTS Service",
-    description="Text-to-Speech synthesis using F5 Spanish model",
-    version="1.0.0"
+    title="Spanish TTS Service",
+    description=f"Text-to-Speech synthesis (backend: {TTS_BACKEND})",
+    version="1.1.0"
 )
 
 
@@ -103,23 +129,46 @@ app = FastAPI(
 # Model Loading
 # ===========================================
 tts_model = None
+kokoro_pipeline = None
+kokoro_voice_tensor = None
 
 @app.on_event("startup")
 async def load_tts_model():
-    """Load TTS model on startup"""
-    global tts_model
-    print(f"Loading F5-TTS model on {DEVICE}...")
-    
-    try:
-        if F5TTS is not None:
-            tts_model = F5TTS(device=DEVICE)
+    """Load TTS model on startup based on TTS_BACKEND setting."""
+    global tts_model, kokoro_pipeline, kokoro_voice_tensor
+
+    if TTS_BACKEND == "kokoro":
+        logger.info(f"Loading Kokoro TTS on {DEVICE}...")
+        if KPipeline is None:
+            raise RuntimeError("Kokoro not installed. pip install kokoro>=0.9.4")
+
+        kokoro_pipeline = KPipeline(lang_code=KOKORO_LANG)
+        logger.info(f"Kokoro pipeline loaded (lang={KOKORO_LANG})")
+
+        # Load evolved voice tensor if specified
+        if KOKORO_VOICE_PATH and Path(KOKORO_VOICE_PATH).exists():
+            kokoro_voice_tensor = torch.load(
+                KOKORO_VOICE_PATH, map_location=DEVICE, weights_only=True
+            )
+            logger.info(f"Loaded evolved voice tensor: {KOKORO_VOICE_PATH}")
         else:
-            # Fallback loading method
-            tts_model = load_model(MODEL_PATH, device=DEVICE)
-        print("F5-TTS model loaded successfully!")
-    except Exception as e:
-        print(f"Error loading TTS model: {e}")
-        raise
+            # Use built-in Kokoro voice
+            kokoro_voice_tensor = kokoro_pipeline.load_voice(KOKORO_VOICE_STYLE)
+            logger.info(f"Using built-in Kokoro voice: {KOKORO_VOICE_STYLE}")
+
+        logger.info("Kokoro TTS ready!")
+
+    else:
+        logger.info(f"Loading F5-TTS model on {DEVICE}...")
+        try:
+            if F5TTS is not None:
+                tts_model = F5TTS(device=DEVICE)
+            else:
+                tts_model = load_model(MODEL_PATH, device=DEVICE)
+            logger.info("F5-TTS model loaded successfully!")
+        except Exception as e:
+            logger.error(f"Error loading TTS model: {e}")
+            raise
 
 
 # ===========================================
@@ -144,59 +193,131 @@ class SynthesizeResponse(BaseModel):
 @app.get("/health")
 async def health():
     """Health check"""
+    if TTS_BACKEND == "kokoro":
+        model_loaded = kokoro_pipeline is not None
+    else:
+        model_loaded = tts_model is not None
+
     return {
         "status": "healthy",
-        "model_loaded": tts_model is not None,
-        "device": DEVICE
+        "backend": TTS_BACKEND,
+        "model_loaded": model_loaded,
+        "device": DEVICE,
     }
 
 
 @app.post("/synthesize")
 async def synthesize(request: SynthesizeRequest):
     """
-    Synthesize speech from text
-    
-    Args:
-        text: Text to synthesize
-        reference_audio: Optional reference audio for voice cloning
-        reference_text: Transcript of reference audio
-        speed: Speech speed multiplier
-        return_bytes: If True, return raw audio in response
+    Synthesize speech from text.
+
+    Dispatches to F5-TTS or Kokoro depending on TTS_BACKEND.
     """
+    if TTS_BACKEND == "kokoro":
+        return await _synthesize_kokoro(request)
+    return await _synthesize_f5(request)
+
+
+async def _synthesize_kokoro(request: SynthesizeRequest):
+    """Synthesize using Kokoro TTS backend."""
+    if kokoro_pipeline is None:
+        raise HTTPException(status_code=503, detail="Kokoro model not loaded")
+
+    try:
+        # Cache check
+        cache_ref = f"kokoro:{KOKORO_VOICE_STYLE}"
+        if not request.return_bytes and request.speed == 1.0:
+            cache_key = synthesis_cache.make_key(request.text, cache_ref)
+            cached = synthesis_cache.get(cache_key)
+            if cached:
+                return SynthesizeResponse(**cached)
+
+        logger.info(f"Kokoro synthesizing: {request.text[:50]}...")
+
+        # Generate audio chunks and concatenate
+        audio_chunks = []
+        for chunk in kokoro_pipeline(
+            request.text,
+            voice=kokoro_voice_tensor,
+            speed=request.speed,
+        ):
+            if chunk.audio is not None:
+                audio_chunks.append(chunk.audio.numpy())
+
+        if not audio_chunks:
+            raise HTTPException(status_code=500, detail="Kokoro produced no audio")
+
+        audio = np.concatenate(audio_chunks)
+        sample_rate = 24000  # Kokoro native sample rate
+
+        duration = len(audio) / sample_rate
+
+        if request.return_bytes:
+            buffer = io.BytesIO()
+            sf.write(buffer, audio, sample_rate, format='WAV')
+            return Response(content=buffer.getvalue(), media_type="audio/wav")
+
+        # Save to file
+        audio_id = str(uuid.uuid4())
+        audio_path = AUDIO_OUTPUT_DIR / f"{audio_id}.wav"
+        sf.write(str(audio_path), audio, sample_rate)
+
+        # Encode to base64
+        buffer = io.BytesIO()
+        sf.write(buffer, audio, sample_rate, format='WAV')
+        audio_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+        response_data = {
+            "audio_url": f"/audio/{audio_id}.wav",
+            "audio_base64": audio_base64,
+            "duration_seconds": duration,
+        }
+
+        if request.speed == 1.0:
+            cache_key = synthesis_cache.make_key(request.text, cache_ref)
+            synthesis_cache.set(cache_key, response_data)
+
+        return SynthesizeResponse(**response_data)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _synthesize_f5(request: SynthesizeRequest):
+    """Synthesize using F5-TTS backend."""
     if tts_model is None:
         raise HTTPException(status_code=503, detail="TTS model not loaded")
-    
+
     try:
-        # Determine reference audio path for cache key
         ref_path = request.reference_audio or REFERENCE_AUDIO_PATH
-        
-        # Check cache first (only for non-byte requests with default speed)
+
+        # Check cache
         if not request.return_bytes and request.speed == 1.0:
             cache_key = synthesis_cache.make_key(request.text, ref_path)
             cached = synthesis_cache.get(cache_key)
             if cached:
                 logger.info(f"Cache hit for text: {request.text[:30]}...")
                 return SynthesizeResponse(**cached)
-        
+
         # Handle reference audio
         ref_audio = None
         ref_text = request.reference_text or ""
-        
+
         if request.reference_audio:
             if request.reference_audio.startswith("data:"):
-                # Base64 encoded
                 audio_data = base64.b64decode(
                     request.reference_audio.split(",")[1]
                 )
                 ref_audio = io.BytesIO(audio_data)
             elif os.path.exists(request.reference_audio):
-                # File path
                 ref_audio = request.reference_audio
         elif REFERENCE_AUDIO_PATH and os.path.exists(REFERENCE_AUDIO_PATH):
             ref_audio = REFERENCE_AUDIO_PATH
-        
-        logger.info(f"Synthesizing: {request.text[:50]}...")
-        
+
+        logger.info(f"F5 synthesizing: {request.text[:50]}...")
+
         # Generate speech
         if F5TTS is not None:
             audio, sample_rate = tts_model.infer(
@@ -212,44 +333,38 @@ async def synthesize(request: SynthesizeRequest):
                 ref_audio=ref_audio,
                 ref_text=ref_text
             )
-        
-        # Calculate duration
+
         duration = len(audio) / sample_rate
-        
+
         if request.return_bytes:
-            # Return raw audio bytes
             buffer = io.BytesIO()
             sf.write(buffer, audio, sample_rate, format='WAV')
-            return Response(
-                content=buffer.getvalue(),
-                media_type="audio/wav"
-            )
-        
+            return Response(content=buffer.getvalue(), media_type="audio/wav")
+
         # Save to file
         audio_id = str(uuid.uuid4())
         audio_path = AUDIO_OUTPUT_DIR / f"{audio_id}.wav"
         sf.write(str(audio_path), audio, sample_rate)
-        
+
         # Encode to base64
         buffer = io.BytesIO()
         sf.write(buffer, audio, sample_rate, format='WAV')
         audio_base64 = base64.b64encode(buffer.getvalue()).decode()
-        
+
         response_data = {
             "audio_url": f"/audio/{audio_id}.wav",
             "audio_base64": audio_base64,
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }
-        
-        # Store in cache
+
         if request.speed == 1.0:
             cache_key = synthesis_cache.make_key(request.text, ref_path)
             synthesis_cache.set(cache_key, response_data)
-            logger.debug(f"Cached synthesis for: {request.text[:30]}...")
-        
+
         return SynthesizeResponse(**response_data)
-        
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -257,35 +372,53 @@ async def synthesize(request: SynthesizeRequest):
 @app.post("/synthesize_stream")
 async def synthesize_stream(request: SynthesizeRequest):
     """
-    Synthesize speech and stream audio chunks
-    Useful for real-time applications
+    Synthesize speech and stream audio chunks.
+    Useful for real-time applications.
     """
-    if tts_model is None:
-        raise HTTPException(status_code=503, detail="TTS model not loaded")
-    
     try:
-        # For now, generate full audio and return
-        # TODO: Implement true streaming when F5-TTS supports it
-        if F5TTS is not None:
-            audio, sample_rate = tts_model.infer(
-                text=request.text,
-                speed=request.speed
-            )
+        if TTS_BACKEND == "kokoro":
+            if kokoro_pipeline is None:
+                raise HTTPException(status_code=503, detail="Kokoro model not loaded")
+
+            audio_chunks = []
+            for chunk in kokoro_pipeline(
+                request.text,
+                voice=kokoro_voice_tensor,
+                speed=request.speed,
+            ):
+                if chunk.audio is not None:
+                    audio_chunks.append(chunk.audio.numpy())
+
+            if not audio_chunks:
+                raise HTTPException(status_code=500, detail="Kokoro produced no audio")
+
+            audio = np.concatenate(audio_chunks)
+            sample_rate = 24000
         else:
-            audio, sample_rate = infer_process(
-                model=tts_model,
-                text=request.text
-            )
-        
-        # Convert to bytes
+            if tts_model is None:
+                raise HTTPException(status_code=503, detail="TTS model not loaded")
+
+            if F5TTS is not None:
+                audio, sample_rate = tts_model.infer(
+                    text=request.text,
+                    speed=request.speed
+                )
+            else:
+                audio, sample_rate = infer_process(
+                    model=tts_model,
+                    text=request.text
+                )
+
         buffer = io.BytesIO()
         sf.write(buffer, audio, sample_rate, format='WAV')
-        
+
         return Response(
             content=buffer.getvalue(),
             media_type="audio/wav"
         )
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -316,6 +449,33 @@ async def set_reference(
             f.write(transcript)
     
     return {"status": "Reference audio saved", "path": REFERENCE_AUDIO_PATH}
+
+
+@app.post("/set_voice")
+async def set_voice(style: str = "neutral"):
+    """
+    Switch the active Kokoro voice tensor (only available with kokoro backend).
+
+    Args:
+        style: Voice style name. Loads the tensor from
+               /data/distillation/evolved_voices/{style}.pt
+    """
+    global kokoro_voice_tensor
+
+    if TTS_BACKEND != "kokoro":
+        raise HTTPException(
+            status_code=400,
+            detail="Voice switching only available with TTS_BACKEND=kokoro",
+        )
+
+    tensor_path = Path(f"/data/distillation/evolved_voices/{style}.pt")
+    if not tensor_path.exists():
+        raise HTTPException(status_code=404, detail=f"Voice tensor not found: {style}")
+
+    kokoro_voice_tensor = torch.load(str(tensor_path), map_location=DEVICE, weights_only=True)
+    logger.info(f"Switched to voice style: {style}")
+
+    return {"status": "ok", "style": style, "tensor_path": str(tensor_path)}
 
 
 if __name__ == "__main__":

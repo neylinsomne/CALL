@@ -85,7 +85,7 @@ services:
       - internal
 
   # ===========================================
-  # Spanish F5-TTS Service
+  # TTS Service (F5-TTS or Kokoro backend)
   # ===========================================
   tts:
     build:
@@ -97,11 +97,17 @@ services:
       - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
       - TTS_MODEL=${TTS_MODEL}
       - DEVICE=${TTS_DEVICE:-cpu}
+      # Kokoro backend (set TTS_BACKEND=kokoro to switch)
+      - TTS_BACKEND=${TTS_BACKEND:-f5}
+      - KOKORO_VOICE_PATH=${KOKORO_VOICE_PATH:-}
+      - KOKORO_VOICE_STYLE=${KOKORO_VOICE_STYLE:-ef_dora}
+      - KOKORO_LANG=${KOKORO_LANG:-e}
     ports:
       - "${TTS_PORT}:8001"
     volumes:
       - ./shared/models:/app/models
       - ./shared/audio:/app/audio
+      - distillation_data:/data/distillation
     networks:
       - callcenter-network
 
@@ -340,6 +346,38 @@ services:
         condition: service_started
 
   # ===========================================
+  # Voice Distillation Pipeline (F5-TTS → Kokoro)
+  # Activate with: docker compose --profile training up voice_distillation
+  # ===========================================
+  voice_distillation:
+    build:
+      context: ./services/voice_distillation
+      dockerfile: Dockerfile
+    container_name: callcenter-voice-distillation
+    environment:
+      - TTS_URL=http://tts:8001
+      - AUDIO_PREPROCESS_URL=http://audio_preprocess:8004
+      - DISTILLATION_OUTPUT=/data/distillation
+      - DEVICE=${TTS_DEVICE:-cpu}
+    volumes:
+      - distillation_data:/data/distillation
+      - ./shared/audio:/app/audio
+      - ./shared/models:/app/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+    depends_on:
+      - tts
+    networks:
+      - callcenter-network
+    profiles:
+      - training
+
+  # ===========================================
   # React Dashboard
   # ===========================================
   dashboard:
@@ -365,6 +403,7 @@ volumes:
   freepbx_backup:
   license_data:
   backend_license_cache:
+  distillation_data:
 
 
 networks:

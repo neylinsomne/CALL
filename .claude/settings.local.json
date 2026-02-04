@@ -8,7 +8,9 @@
       "Bash(docker compose build:*)",
       "Bash(docker compose up:*)",
       "Bash(docker compose rm:*)",
-      "Bash(docker volume rm:*)"
+      "Bash(docker volume rm:*)",
+      "WebFetch(domain:research.atspotify.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

@@ -20,7 +20,7 @@ Token rotation:
 import os
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from fastapi import Depends, HTTPException, Header, status, Request
@@ -176,7 +176,7 @@ async def get_current_tenant(
             )
 
         # Check expiration
-        if token_record.expires_at and token_record.expires_at < datetime.utcnow():
+        if token_record.expires_at and token_record.expires_at < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token expired. Contact administrator to obtain a new token.",
@@ -184,7 +184,7 @@ async def get_current_tenant(
             )
 
         # Update last_used_at
-        token_record.last_used_at = datetime.utcnow()
+        token_record.last_used_at = datetime.now(timezone.utc)
 
         # Get the organization
         org_result = await session.execute(
@@ -248,7 +248,7 @@ async def expire_old_tokens():
     Should be called periodically by a scheduler.
     """
     async with get_local_session() as session:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         result = await session.execute(
             update(ApiTokenLocal)
             .where(

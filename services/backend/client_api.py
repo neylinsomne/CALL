@@ -13,7 +13,7 @@ Scopes:
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException, status, Depends, Query
@@ -202,7 +202,7 @@ async def update_my_agent_config(
         if data.config is not None:
             agent.config = data.config
 
-        agent.updated_at = datetime.utcnow()
+        agent.updated_at = datetime.now(timezone.utc)
 
         logger.info(f"Agent config updated by tenant {tenant.org_name}: {agent.name}")
         return {"status": "updated", "agent_id": str(agent.id)}
@@ -323,7 +323,7 @@ async def get_my_call_metrics(
         if not agent_ids:
             return {"total_calls": 0, "agents": 0}
 
-        since = datetime.utcnow() - __import__("datetime").timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
         total_calls = (await session.execute(
             select(func.count(Conversation.id)).where(
