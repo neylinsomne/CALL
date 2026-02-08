@@ -101,6 +101,27 @@ class QaManualEvaluation(BaseModel):
 
 
 # =============================================
+# Current User / Tenant Info
+# =============================================
+
+@router.get("/me")
+async def get_current_user(
+    tenant: TenantContext = Depends(get_current_tenant),
+):
+    """
+    Get information about the currently authenticated organization/user.
+    Used by the dashboard to validate the token and display user info.
+    """
+    return {
+        "org_id": tenant.org_id,
+        "org_name": tenant.org_name,
+        "plan_type": tenant.plan_type,
+        "scopes": tenant.scopes,
+        "authenticated": True
+    }
+
+
+# =============================================
 # Agent Endpoints (agent:read / agent:write)
 # =============================================
 

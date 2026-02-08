@@ -820,10 +820,359 @@ async def _apply_telephony_config(config: TelephonyReceptionConfig):
 
 
 # ============================================
+# CLIENT PROVISIONING MODELS
+# ============================================
+
+class ClientCompany(BaseModel):
+    name: str
+    contactName: str = ""
+    contactEmail: str = ""
+    contactPhone: str = ""
+    notes: str = ""
+
+
+class AgentExtension(BaseModel):
+    extension: str
+    name: str
+    password: str
+    enabled: bool = True
+
+
+class ClientAgents(BaseModel):
+    count: int
+    extensionPrefix: str = "10"
+    generatePasswords: bool = True
+    extensions: List[AgentExtension] = []
+
+
+class ClientDDNS(BaseModel):
+    enabled: bool = False
+    provider: str = "duckdns"
+    domain: str = ""
+    token: str = ""
+
+
+class ClientSipTrunk(BaseModel):
+    host: str = ""
+    user: str = ""
+    password: str = ""
+    outboundCallerId: str = ""
+
+
+class ClientGateway(BaseModel):
+    ip: str = ""
+    user: str = "gateway"
+    password: str = ""
+    fxoPorts: int = 4
+
+
+class ClientNetwork(BaseModel):
+    connectionType: str = "sip_trunk"  # "sip_trunk" | "gateway_fxo"
+    externalIp: str = ""
+    autoDetectIp: bool = True
+    localNetwork: str = "192.168.1.0/24"
+    rtpPortStart: int = 10000
+    rtpPortEnd: int = 20000
+    sipProviderWhitelist: str = ""
+    ddns: ClientDDNS = ClientDDNS()
+    sipTrunk: ClientSipTrunk = ClientSipTrunk()
+    gateway: ClientGateway = ClientGateway()
+
+
+class ClientProvisionRequest(BaseModel):
+    company: ClientCompany
+    agents: ClientAgents
+    network: ClientNetwork
+
+
+CLIENTS_DIR = CONFIG_DIR / "clients"
+
+
+# ============================================
+# CLIENT PROVISIONING ENDPOINTS
+# ============================================
+
+@router.post("/api/clients/provision")
+async def provision_client(request: ClientProvisionRequest):
+    """
+    Provisiona un nuevo cliente con extensiones y configuración de red.
+
+    Genera:
+    - Archivo de configuración del cliente (JSON)
+    - Archivo .env específico para el cliente
+    - Configuración PJSIP para las extensiones
+
+    Returns:
+        {
+            "success": bool,
+            "client_id": str,
+            "config_file": str,
+            "extensions_count": int,
+            "message": str
+        }
+    """
+    try:
+        import hashlib
+        from datetime import datetime
+
+        # Crear directorio de clientes
+        CLIENTS_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Generar ID único para el cliente
+        client_id = hashlib.md5(
+            f"{request.company.name}_{datetime.now().isoformat()}".encode()
+        ).hexdigest()[:12]
+
+        client_dir = CLIENTS_DIR / client_id
+        client_dir.mkdir(parents=True, exist_ok=True)
+
+        # Guardar configuración del cliente como JSON
+        config_dict = request.dict()
+        config_dict["client_id"] = client_id
+        config_dict["created_at"] = datetime.now().isoformat()
+
+        config_file = client_dir / "config.json"
+        async with aiofiles.open(config_file, 'w') as f:
+            await f.write(json.dumps(config_dict, indent=2, ensure_ascii=False))
+
+        # Generar archivo .env específico para el cliente
+        env_content = _generate_client_env(request, client_id)
+        env_file = client_dir / ".env"
+        async with aiofiles.open(env_file, 'w') as f:
+            await f.write(env_content)
+
+        # Generar configuración PJSIP para las extensiones
+        pjsip_content = _generate_client_pjsip(request)
+        pjsip_file = client_dir / "pjsip_extensions.conf"
+        async with aiofiles.open(pjsip_file, 'w') as f:
+            await f.write(pjsip_content)
+
+        logger.info(f"✅ Cliente provisionado: {request.company.name} (ID: {client_id})")
+
+        return {
+            "success": True,
+            "client_id": client_id,
+            "config_file": str(config_file),
+            "env_file": str(env_file),
+            "pjsip_file": str(pjsip_file),
+            "extensions_count": len(request.agents.extensions),
+            "message": f"Cliente '{request.company.name}' provisionado exitosamente con {len(request.agents.extensions)} extensiones"
+        }
+
+    except Exception as e:
+        logger.error(f"Error provisionando cliente: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/clients")
+async def list_clients():
+    """
+    Lista todos los clientes provisionados.
+    """
+    try:
+        clients = []
+
+        if not CLIENTS_DIR.exists():
+            return {"clients": []}
+
+        for client_dir in CLIENTS_DIR.iterdir():
+            if client_dir.is_dir():
+                config_file = client_dir / "config.json"
+                if config_file.exists():
+                    async with aiofiles.open(config_file, 'r') as f:
+                        content = await f.read()
+                        config = json.loads(content)
+                        clients.append({
+                            "client_id": config.get("client_id"),
+                            "company_name": config.get("company", {}).get("name"),
+                            "extensions_count": len(config.get("agents", {}).get("extensions", [])),
+                            "connection_type": config.get("network", {}).get("connectionType"),
+                            "created_at": config.get("created_at")
+                        })
+
+        return {"clients": clients}
+
+    except Exception as e:
+        logger.error(f"Error listando clientes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/clients/{client_id}")
+async def get_client(client_id: str):
+    """
+    Obtiene la configuración completa de un cliente.
+    """
+    try:
+        config_file = CLIENTS_DIR / client_id / "config.json"
+
+        if not config_file.exists():
+            raise HTTPException(status_code=404, detail="Cliente no encontrado")
+
+        async with aiofiles.open(config_file, 'r') as f:
+            content = await f.read()
+            return json.loads(content)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error obteniendo cliente {client_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/clients/{client_id}/download")
+async def download_client_config(client_id: str):
+    """
+    Descarga el archivo .env del cliente.
+    """
+    try:
+        env_file = CLIENTS_DIR / client_id / ".env"
+
+        if not env_file.exists():
+            raise HTTPException(status_code=404, detail="Archivo de configuración no encontrado")
+
+        async with aiofiles.open(env_file, 'r') as f:
+            content = await f.read()
+
+        return {
+            "client_id": client_id,
+            "filename": f"{client_id}.env",
+            "content": content
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error descargando config de {client_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _generate_client_env(request: ClientProvisionRequest, client_id: str) -> str:
+    """Genera contenido del archivo .env para un cliente."""
+    lines = [
+        f"# Configuración para: {request.company.name}",
+        f"# Client ID: {client_id}",
+        f"# Generado: {__import__('datetime').datetime.now().isoformat()}",
+        "",
+        "# ================================",
+        "# DATOS DEL CLIENTE",
+        "# ================================",
+        f'COMPANY_NAME="{request.company.name}"',
+        f'CONTACT_NAME="{request.company.contactName}"',
+        f'CONTACT_EMAIL="{request.company.contactEmail}"',
+        "",
+        "# ================================",
+        "# CONFIGURACIÓN DE RED / NAT",
+        "# ================================",
+        f"EXTERNAL_IP={request.network.externalIp or '# Auto-detectar'}",
+        f"LOCAL_NETWORK={request.network.localNetwork}",
+        f"RTP_PORT_START={request.network.rtpPortStart}",
+        f"RTP_PORT_END={request.network.rtpPortEnd}",
+    ]
+
+    if request.network.sipProviderWhitelist:
+        lines.append(f"SIP_PROVIDER_WHITELIST={request.network.sipProviderWhitelist}")
+
+    if request.network.ddns.enabled:
+        lines.extend([
+            "",
+            "# DDNS",
+            "DDNS_ENABLED=true",
+            f"DDNS_PROVIDER={request.network.ddns.provider}",
+            f"DDNS_DOMAIN={request.network.ddns.domain}",
+            f"DDNS_TOKEN={request.network.ddns.token}",
+        ])
+
+    lines.append("")
+
+    if request.network.connectionType == "sip_trunk":
+        lines.extend([
+            "# ================================",
+            "# SIP TRUNK",
+            "# ================================",
+            f"SIP_TRUNK_HOST={request.network.sipTrunk.host}",
+            f"SIP_TRUNK_USER={request.network.sipTrunk.user}",
+            f"SIP_TRUNK_PASSWORD={request.network.sipTrunk.password}",
+            f"OUTBOUND_CALLERID={request.network.sipTrunk.outboundCallerId}",
+        ])
+    else:
+        lines.extend([
+            "# ================================",
+            "# GATEWAY FXO",
+            "# ================================",
+            f"GATEWAY_FXO_IP={request.network.gateway.ip}",
+            f"GATEWAY_FXO_USER={request.network.gateway.user}",
+            f"GATEWAY_FXO_PASSWORD={request.network.gateway.password}",
+            f"GATEWAY_FXO_PORTS={request.network.gateway.fxoPorts}",
+        ])
+
+    lines.extend([
+        "",
+        "# ================================",
+        "# EXTENSIONES / AGENTES",
+        "# ================================",
+    ])
+
+    for i, ext in enumerate(request.agents.extensions):
+        lines.extend([
+            f"# Agente {i + 1}",
+            f"AGENT_{i + 1}_EXT={ext.extension}",
+            f'AGENT_{i + 1}_NAME="{ext.name}"',
+            f"AGENT_{i + 1}_PASS={ext.password}",
+            "",
+        ])
+
+    return "\n".join(lines)
+
+
+def _generate_client_pjsip(request: ClientProvisionRequest) -> str:
+    """Genera configuración PJSIP para las extensiones del cliente."""
+    lines = [
+        f"; PJSIP Extensions para: {request.company.name}",
+        f"; Generado automáticamente",
+        "",
+    ]
+
+    for ext in request.agents.extensions:
+        lines.extend([
+            f"; --- {ext.name} ---",
+            f"[{ext.extension}]",
+            "type=endpoint",
+            "context=call-center",
+            "disallow=all",
+            "allow=ulaw",
+            "allow=alaw",
+            "allow=opus",
+            f"auth={ext.extension}",
+            f"aors={ext.extension}",
+            "direct_media=no",
+            "force_rport=yes",
+            "rewrite_contact=yes",
+            "rtp_symmetric=yes",
+            f'callerid="{ext.name}" <{ext.extension}>',
+            "",
+            f"[{ext.extension}]",
+            "type=auth",
+            "auth_type=userpass",
+            f"username={ext.extension}",
+            f"password={ext.password}",
+            "",
+            f"[{ext.extension}]",
+            "type=aor",
+            "max_contacts=3",
+            "remove_existing=yes",
+            "",
+        ])
+
+    return "\n".join(lines)
+
+
+# ============================================
 # INICIALIZACIÓN
 # ============================================
 
 def init_config_manager():
     """Inicializa el gestor de configuración"""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CLIENTS_DIR.mkdir(parents=True, exist_ok=True)
     logger.info(f"Config directory: {CONFIG_DIR}")
+    logger.info(f"Clients directory: {CLIENTS_DIR}")

@@ -11,7 +11,9 @@ import {
     TrendingUp,
     Mic,
     BookOpen,
-    Activity
+    Activity,
+    Mail,
+    HelpCircle
 } from 'lucide-react';
 
 const navItems = [
@@ -72,23 +74,59 @@ export default function Sidebar() {
                 ))}
             </nav>
 
-            <div style={{
-                padding: '1rem',
-                background: 'rgba(59, 130, 246, 0.1)',
-                borderRadius: '12px',
-                marginTop: 'auto'
-            }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                    🤖 AI Status
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ marginTop: 'auto' }}>
+                {/* Soporte / Contacto */}
+                <div style={{
+                    padding: '0.75rem',
+                    background: 'rgba(139, 92, 246, 0.1)',
+                    borderRadius: '8px',
+                    marginBottom: '0.75rem'
+                }}>
                     <div style={{
-                        width: '8px',
-                        height: '8px',
-                        background: '#10b981',
-                        borderRadius: '50%'
-                    }} />
-                    <span style={{ fontSize: '0.85rem' }}>Operativo</span>
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
+                        marginBottom: '0.5rem'
+                    }}>
+                        <HelpCircle size={12} />
+                        Soporte
+                    </div>
+                    <a
+                        href="mailto:soporte@callcenter-ai.com"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            fontSize: '0.8rem',
+                            color: '#8b5cf6',
+                            textDecoration: 'none'
+                        }}
+                    >
+                        <Mail size={14} />
+                        soporte@callcenter-ai.com
+                    </a>
+                </div>
+
+                {/* AI Status */}
+                <div style={{
+                    padding: '1rem',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    borderRadius: '12px'
+                }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                        AI Status
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{
+                            width: '8px',
+                            height: '8px',
+                            background: '#10b981',
+                            borderRadius: '50%'
+                        }} />
+                        <span style={{ fontSize: '0.85rem' }}>Operativo</span>
+                    </div>
                 </div>
             </div>
         </aside>

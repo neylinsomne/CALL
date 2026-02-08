@@ -1,6 +1,5 @@
-import { useState, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { authenticateUser, MOCK_USERS } from './data/mockData';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Login from './pages/Login';
@@ -17,69 +16,73 @@ import ConfigurationWizard from './pages/ConfigurationWizard';
 import Telephony from './pages/Telephony';
 import VoiceLab from './pages/VoiceLab';
 
-// Auth Context
-const AuthContext = createContext(null);
+// Loading spinner component
+function LoadingScreen() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-primary)'
+    }}>
+      <div style={{
+        width: '48px',
+        height: '48px',
+        border: '3px solid var(--border-color)',
+        borderTopColor: '#3b82f6',
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite'
+      }} />
+    </div>
+  );
+}
 
-export const useAuth = () => useContext(AuthContext);
+// Protected route wrapper
+function ProtectedContent() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  return (
+    <div className="app">
+      <Sidebar />
+      <Header />
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/setup" element={<ConfigurationWizard />} />
+          <Route path="/calls" element={<Calls />} />
+          <Route path="/calls/:id" element={<CallDetail />} />
+          <Route path="/agents" element={<Agents />} />
+          <Route path="/agents/:id" element={<AgentProfile />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/emotions" element={<SentimentAnalytics />} />
+          <Route path="/vocabulary" element={<Vocabulary />} />
+          <Route path="/knowledge" element={<KnowledgeBase />} />
+          <Route path="/telephony" element={<Telephony />} />
+          <Route path="/voice-lab" element={<VoiceLab />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
 
 function App() {
-    const [user, setUser] = useState(() => {
-        // Auto-login for demo
-        const saved = localStorage.getItem('user');
-        return saved ? JSON.parse(saved) : MOCK_USERS[0]; // Default to admin
-    });
-
-    const login = (email, password) => {
-        const user = authenticateUser(email, password);
-        if (user) {
-            setUser(user);
-            localStorage.setItem('user', JSON.stringify(user));
-            return true;
-        }
-        return false;
-    };
-
-    const logout = () => {
-        setUser(null);
-        localStorage.removeItem('user');
-    };
-
-    if (!user) {
-        return (
-            <AuthContext.Provider value={{ user, login, logout }}>
-                <Login />
-            </AuthContext.Provider>
-        );
-    }
-
-    return (
-        <AuthContext.Provider value={{ user, login, logout }}>
-            <BrowserRouter>
-                <div className="app">
-                    <Sidebar />
-                    <Header />
-                    <main className="main-content">
-                        <Routes>
-                            <Route path="/" element={<Dashboard />} />
-                            <Route path="/setup" element={<ConfigurationWizard />} />
-                            <Route path="/calls" element={<Calls />} />
-                            <Route path="/calls/:id" element={<CallDetail />} />
-                            <Route path="/agents" element={<Agents />} />
-                            <Route path="/agents/:id" element={<AgentProfile />} />
-                            <Route path="/analytics" element={<Analytics />} />
-                            <Route path="/emotions" element={<SentimentAnalytics />} />
-                            <Route path="/vocabulary" element={<Vocabulary />} />
-                            <Route path="/knowledge" element={<KnowledgeBase />} />
-                            <Route path="/telephony" element={<Telephony />} />
-                            <Route path="/voice-lab" element={<VoiceLab />} />
-                            <Route path="*" element={<Navigate to="/" />} />
-                        </Routes>
-                    </main>
-                </div>
-            </BrowserRouter>
-        </AuthContext.Provider>
-    );
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <ProtectedContent />
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
 export default App;
-

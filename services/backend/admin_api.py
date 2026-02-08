@@ -453,6 +453,20 @@ async def update_agent(agent_id: str, data: AgentUpdateRequest):
 
 
 # =============================================
+# Admin Dashboard Auth Validation
+# =============================================
+
+@router.get("/validate", dependencies=[Depends(verify_admin)])
+async def validate_admin_key():
+    """
+    Validates the admin API key.
+    Returns 200 OK if valid, 401/403 otherwise.
+    Used by the admin dashboard to check authentication.
+    """
+    return {"valid": True, "message": "Admin API key is valid"}
+
+
+# =============================================
 # Admin Dashboard Stats
 # =============================================
 

@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { Search, Bell, ChevronDown, LogOut } from 'lucide-react';
 
 export default function Header() {
     const { user, logout } = useAuth();
     const [showMenu, setShowMenu] = useState(false);
+
+    // Get initials from org name
+    const getInitials = (name) => {
+        if (!name) return '??';
+        const words = name.split(' ');
+        return words.slice(0, 2).map(w => w[0]).join('').toUpperCase();
+    };
 
     return (
         <header className="header">
@@ -32,10 +39,14 @@ export default function Header() {
                     onClick={() => setShowMenu(!showMenu)}
                     style={{ position: 'relative' }}
                 >
-                    <div className="avatar">{user?.avatar}</div>
+                    <div className="avatar" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)' }}>
+                        {getInitials(user?.org_name)}
+                    </div>
                     <div>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{user?.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{user?.role}</div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{user?.org_name || 'Organizacion'}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                            {user?.plan_type || 'Plan'}
+                        </div>
                     </div>
                     <ChevronDown size={16} color="var(--text-muted)" />
 

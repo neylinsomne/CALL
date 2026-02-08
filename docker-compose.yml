@@ -396,7 +396,7 @@ services:
       - training
 
   # ===========================================
-  # React Dashboard
+  # React Dashboard (Client-Facing)
   # ===========================================
   dashboard:
     build:
@@ -410,6 +410,28 @@ services:
       - "${DASHBOARD_PORT:-3001}:3000"
     networks:
       - callcenter-network
+
+  # ===========================================
+  # Admin Dashboard (Internal Only - Installers/Tech Team)
+  # ===========================================
+  # Activate with: docker compose --profile internal up admin-dashboard
+  # This dashboard is for your team to configure deployments,
+  # NOT for end clients. Never deploy this to client installations.
+  admin-dashboard:
+    build:
+      context: ./services/admin-dashboard
+      dockerfile: Dockerfile
+    container_name: callcenter-admin-dashboard
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://backend:8000
+      - VITE_ADMIN_MODE=true
+    ports:
+      - "${ADMIN_DASHBOARD_PORT:-3002}:3000"
+    networks:
+      - callcenter-network
+    profiles:
+      - internal
 
 volumes:
   postgres_data:
