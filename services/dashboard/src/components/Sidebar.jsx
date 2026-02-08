@@ -10,7 +10,8 @@ import {
     MessageSquare,
     TrendingUp,
     Mic,
-    BookOpen
+    BookOpen,
+    Activity
 } from 'lucide-react';
 
 const navItems = [
@@ -35,6 +36,7 @@ const navItems = [
         items: [
             { path: '/telephony', icon: PhoneIncoming, label: 'Telefonía' },
             { path: '/vocabulary', icon: Mic, label: 'Vocabulario' },
+            { path: '/voice-lab', icon: Activity, label: 'Voice Lab' },
             { path: '/knowledge', icon: BookOpen, label: 'Base Conocimiento' },
             { path: '/settings', icon: Settings, label: 'Configuración' },
         ]

@@ -394,6 +394,14 @@ README
 
 echo -e "${GREEN}✅ README generado${NC}"
 
+# Copiar documentación de requisitos telefónicos
+echo -e "\n${YELLOW}8a. Copiando documentación de conexión telefónica...${NC}"
+
+if [ -f "REQUISITOS_CONEXION_TELEFONICA.md" ]; then
+    cp REQUISITOS_CONEXION_TELEFONICA.md "${OUTPUT_DIR}/"
+    echo -e "${GREEN}✅ Requisitos de conexión telefónica copiados${NC}"
+fi
+
 # Generar documentación de API y cláusulas
 echo -e "\n${YELLOW}8b. Generando documentación de API y cláusulas...${NC}"
 
@@ -588,6 +596,38 @@ find . -type f -exec sha256sum {} \; > checksums.txt
 cd ..
 
 echo -e "${GREEN}✅ Checksums generados${NC}"
+
+# Generar PDFs de documentación (opcional)
+echo -e "\n${YELLOW}10. Generando PDFs de documentación...${NC}"
+
+if [ -f "scripts/generate_docs_pdf.sh" ]; then
+    # Verificar si pandoc o docker están disponibles
+    if command -v pandoc &> /dev/null || command -v docker &> /dev/null; then
+        mkdir -p "${OUTPUT_DIR}/docs"
+
+        # Copiar documentos MD importantes
+        for doc in REQUISITOS_CONEXION_TELEFONICA.md README_WIZARD.md README_SEGURIDAD.md; do
+            [ -f "$doc" ] && cp "$doc" "${OUTPUT_DIR}/docs/" 2>/dev/null || true
+        done
+
+        # Intentar generar PDFs
+        if bash scripts/generate_docs_pdf.sh "${OUTPUT_DIR}/docs" 2>/dev/null; then
+            echo -e "${GREEN}✅ PDFs de documentación generados${NC}"
+        else
+            echo -e "${YELLOW}⚠ PDFs no generados (pandoc/latex no disponible)${NC}"
+            echo -e "${YELLOW}  Los documentos están en formato Markdown${NC}"
+        fi
+    else
+        # Solo copiar los MD si no hay herramientas de conversión
+        mkdir -p "${OUTPUT_DIR}/docs"
+        for doc in REQUISITOS_CONEXION_TELEFONICA.md README_WIZARD.md README_SEGURIDAD.md; do
+            [ -f "$doc" ] && cp "$doc" "${OUTPUT_DIR}/docs/" 2>/dev/null || true
+        done
+        echo -e "${YELLOW}⚠ Documentación copiada como Markdown (instalar pandoc para PDFs)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠ Script de generación de PDFs no encontrado${NC}"
+fi
 
 # Resumen final
 echo -e "\n${GREEN}=======================================${NC}"

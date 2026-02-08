@@ -278,12 +278,30 @@ services:
       - GATEWAY_FXO_IP=${GATEWAY_FXO_IP:-192.168.1.100}
       - GATEWAY_FXO_USER=${GATEWAY_FXO_USER:-gateway}
       - GATEWAY_FXO_PASSWORD=${GATEWAY_FXO_PASSWORD:-gateway123}
+      # NAT / Network Configuration
+      - EXTERNAL_IP=${EXTERNAL_IP:-}
+      - LOCAL_NETWORK=${LOCAL_NETWORK:-192.168.1.0/24}
+      - RTP_PORT_START=${RTP_PORT_START:-10000}
+      - RTP_PORT_END=${RTP_PORT_END:-20000}
+      # SIP Trunk
+      - SIP_TRUNK_HOST=${SIP_TRUNK_HOST:-}
+      - SIP_TRUNK_USER=${SIP_TRUNK_USER:-}
+      - SIP_TRUNK_PASSWORD=${SIP_TRUNK_PASSWORD:-}
+      # DDNS (Dynamic IP)
+      - DDNS_ENABLED=${DDNS_ENABLED:-false}
+      - DDNS_PROVIDER=${DDNS_PROVIDER:-duckdns}
+      - DDNS_DOMAIN=${DDNS_DOMAIN:-}
+      - DDNS_TOKEN=${DDNS_TOKEN:-}
+      # WebRTC
+      - WEBRTC_PASSWORD=${WEBRTC_PASSWORD:-webrtc123}
     ports:
-      - "${ASTERISK_SIP_PORT}:5060/udp"
-      - "${ASTERISK_SIP_PORT}:5060/tcp"
-      - "${ASTERISK_WS_PORT}:8088"
+      - "${ASTERISK_SIP_PORT:-5060}:5060/udp"
+      - "${ASTERISK_SIP_PORT:-5060}:5060/tcp"
+      - "5061:5061/tcp" # SIP TLS
+      - "${ASTERISK_WS_PORT:-8088}:8088"
+      - "8089:8089" # WebSocket Secure
       - "5038:5038" # AMI port
-      - "10000-10100:10000-10100/udp" # RTP ports
+      - "${RTP_PORT_START:-10000}-${RTP_PORT_END:-20000}:${RTP_PORT_START:-10000}-${RTP_PORT_END:-20000}/udp" # RTP ports
     volumes:
       - ./services/asterisk/config:/etc/asterisk/custom
       - asterisk_logs:/var/log/asterisk

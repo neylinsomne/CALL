@@ -1,29 +1,61 @@
 ; PJSIP Configuration for AI Call Center
 ; Supports: SIP Trunks, Softphones, WebRTC
 ; Template with environment variable placeholders
+;
+; NAT Configuration:
+;   EXTERNAL_IP: Tu IP pública o dominio DDNS
+;   LOCAL_NETWORK: Tu red local (ej: 192.168.1.0/24)
 
 ; ===========================================
-; TRANSPORTS
+; TRANSPORTS CON NAT
 ; ===========================================
+
+; UDP Transport (principal para SIP)
 [transport-udp]
 type=transport
 protocol=udp
 bind=0.0.0.0:5060
+; === NAT Settings ===
+; Si EXTERNAL_IP está configurado, reescribir direcciones
+external_media_address=${EXTERNAL_IP:-}
+external_signaling_address=${EXTERNAL_IP:-}
+; Redes locales (no reescribir tráfico interno)
+local_net=${LOCAL_NETWORK:-192.168.1.0/24}
+local_net=10.0.0.0/8
+local_net=172.16.0.0/12
+local_net=127.0.0.1/32
 
+; TCP Transport (respaldo)
 [transport-tcp]
 type=transport
 protocol=tcp
 bind=0.0.0.0:5060
+external_media_address=${EXTERNAL_IP:-}
+external_signaling_address=${EXTERNAL_IP:-}
+local_net=${LOCAL_NETWORK:-192.168.1.0/24}
+local_net=10.0.0.0/8
+local_net=172.16.0.0/12
+local_net=127.0.0.1/32
 
+; WebSocket Transport (para WebRTC)
 [transport-ws]
 type=transport
 protocol=ws
 bind=0.0.0.0:8088
+external_media_address=${EXTERNAL_IP:-}
+external_signaling_address=${EXTERNAL_IP:-}
+local_net=${LOCAL_NETWORK:-192.168.1.0/24}
+local_net=127.0.0.1/32
 
+; WebSocket Secure (para WebRTC con TLS)
 [transport-wss]
 type=transport
 protocol=wss
 bind=0.0.0.0:8089
+external_media_address=${EXTERNAL_IP:-}
+external_signaling_address=${EXTERNAL_IP:-}
+local_net=${LOCAL_NETWORK:-192.168.1.0/24}
+local_net=127.0.0.1/32
 
 ; ===========================================
 ; SIP TRUNK - Conectar a proveedor VOIP

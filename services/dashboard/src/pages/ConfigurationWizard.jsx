@@ -54,6 +54,22 @@ const ConfigurationWizard = () => {
       }
     },
 
+    // Configuración de Red (NAT)
+    network: {
+      showAdvanced: false,
+      externalIp: '', // IP pública o dominio DDNS (vacío = auto-detectar)
+      localNetwork: '192.168.1.0/24',
+      rtpPortStart: 10000,
+      rtpPortEnd: 20000,
+      sipProviderWhitelist: '',
+      ddns: {
+        enabled: false,
+        provider: 'duckdns',
+        domain: '',
+        token: ''
+      }
+    },
+
     // Paso 2: Servicios de IA
     aiServices: {
       stt: {
@@ -352,6 +368,198 @@ const ConfigurationWizard = () => {
               }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-md"
             />
+          </div>
+
+          {/* Configuración de Red / NAT */}
+          <div className="mt-4 border-t border-gray-200 pt-4">
+            <button
+              type="button"
+              onClick={() => setConfig(prev => ({
+                ...prev,
+                network: { ...prev.network, showAdvanced: !prev.network.showAdvanced }
+              }))}
+              className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+            >
+              <svg className={`h-4 w-4 mr-1 transition-transform ${config.network.showAdvanced ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              Configuración de Red / NAT (Avanzado)
+            </button>
+
+            {config.network.showAdvanced && (
+              <div className="mt-3 space-y-3 p-3 bg-white border border-gray-200 rounded-md">
+                <p className="text-xs text-gray-500 mb-3">
+                  Configura estos valores si tu servidor está detrás de un router/NAT.
+                  Si dejas la IP externa vacía, se auto-detectará.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    IP Externa (Pública)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Auto-detectar (dejar vacío) o ej: 181.123.45.67"
+                    value={config.network.externalIp}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      network: { ...prev.network, externalIp: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Red Local (CIDR)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="192.168.1.0/24"
+                    value={config.network.localNetwork}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      network: { ...prev.network, localNetwork: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Puerto RTP Inicio
+                    </label>
+                    <input
+                      type="number"
+                      value={config.network.rtpPortStart}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        network: { ...prev.network, rtpPortStart: parseInt(e.target.value) }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Puerto RTP Fin
+                    </label>
+                    <input
+                      type="number"
+                      value={config.network.rtpPortEnd}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        network: { ...prev.network, rtpPortEnd: parseInt(e.target.value) }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Whitelist IPs Proveedor SIP (Seguridad)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="200.100.50.0/24, 201.200.100.0/24"
+                    value={config.network.sipProviderWhitelist}
+                    onChange={(e) => setConfig(prev => ({
+                      ...prev,
+                      network: { ...prev.network, sipProviderWhitelist: e.target.value }
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    IPs de tu proveedor SIP. Solo estas podrán conectarse al puerto 5060.
+                  </p>
+                </div>
+
+                {/* DDNS para IP Dinámica */}
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.network.ddns.enabled}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        network: {
+                          ...prev.network,
+                          ddns: { ...prev.network.ddns, enabled: e.target.checked }
+                        }
+                      }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Mi IP pública es dinámica (usar DDNS)
+                    </span>
+                  </label>
+
+                  {config.network.ddns.enabled && (
+                    <div className="mt-2 space-y-2 ml-6">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Proveedor DDNS
+                        </label>
+                        <select
+                          value={config.network.ddns.provider}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev,
+                            network: {
+                              ...prev.network,
+                              ddns: { ...prev.network.ddns, provider: e.target.value }
+                            }
+                          }))}
+                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                        >
+                          <option value="duckdns">DuckDNS (Gratis)</option>
+                          <option value="noip">No-IP</option>
+                          <option value="dynu">Dynu</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Dominio
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="micallcenter"
+                            value={config.network.ddns.domain}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              network: {
+                                ...prev.network,
+                                ddns: { ...prev.network.ddns, domain: e.target.value }
+                              }
+                            }))}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Token
+                          </label>
+                          <input
+                            type="password"
+                            placeholder="tu-token"
+                            value={config.network.ddns.token}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              network: {
+                                ...prev.network,
+                                ddns: { ...prev.network.ddns, token: e.target.value }
+                              }
+                            }))}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

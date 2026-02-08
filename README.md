@@ -2,6 +2,18 @@
 
 Sistema de call center con IA que integra síntesis de voz en español, LLM conversacional via LM Studio, y VOIP con Asterisk.
 
+## 📚 Documentación
+
+**[Ver Documentación Completa →](DOCUMENTACION.md)**
+
+Índice organizado de toda la documentación del proyecto, incluyendo:
+- Configuración de red y NAT para VoIP
+- Integración FreePBX/Asterisk
+- Pipeline de IA y voz
+- Seguridad y licencias
+
+---
+
 ## 🚀 Quick Start
 
 ```bash

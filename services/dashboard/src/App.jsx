@@ -15,6 +15,7 @@ import Vocabulary from './pages/Vocabulary';
 import KnowledgeBase from './pages/KnowledgeBase';
 import ConfigurationWizard from './pages/ConfigurationWizard';
 import Telephony from './pages/Telephony';
+import VoiceLab from './pages/VoiceLab';
 
 // Auth Context
 const AuthContext = createContext(null);
@@ -70,6 +71,7 @@ function App() {
                             <Route path="/vocabulary" element={<Vocabulary />} />
                             <Route path="/knowledge" element={<KnowledgeBase />} />
                             <Route path="/telephony" element={<Telephony />} />
+                            <Route path="/voice-lab" element={<VoiceLab />} />
                             <Route path="*" element={<Navigate to="/" />} />
                         </Routes>
                     </main>
